@@ -1,5 +1,5 @@
 # my-research-hub
-In this repository, we treat research material such as report, code, etc.
+In this repository, we treat research material such as report, code, etc.  
 **Note:** This repository shuldn't open.
 
 # LICENSE
