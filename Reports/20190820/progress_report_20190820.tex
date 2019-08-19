@@ -1,0 +1,81 @@
+% !TEX encoding = UTF-8 Unicode
+%%
+%%		XX_名前_日付.{tex,pdf}
+%%		XX, 名前, 日付は naming rule に従う
+%%
+\documentclass[11pt,a4paper]{jsarticle}
+
+%% ページ設定のパラメータは変更しない
+\usepackage[top=72pt,bottom=60pt,left=40pt,right=40pt]{geometry}
+\setlength{\topmargin}{-38pt}
+\setlength{\headheight}{18pt}
+\setlength{\headsep}{20pt}
+\setlength{\footskip}{38pt}
+\setlength{\topskip}{0pt}
+%%
+
+%% 共通フォーマット
+\usepackage{fancyhdr}
+\rhead{\stdid, \sirname}
+\cfoot{}
+\rfoot{\thepage}
+\renewcommand{\footrulewidth}{\headrulewidth}
+\pagestyle{fancy}
+
+\usepackage{subfig}
+\usepackage{layout}
+
+%% \title{maketitleは使わない}
+%% \author{}
+%% \date{}
+
+%% 自分の使うパッケージ
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{ascmac}
+\usepackage{indentfirst}
+\graphicspath{{./images/}}
+
+%% 個人設定、日付設定
+\lfoot{2019年 8月20日}		%% 日付
+\def\stdid{18T0006}		%% 学生証番号
+\def\sirname{小室}		%% 姓
+\def\firstname{光広}		%% 名
+
+
+\begin{document}
+%% \maketitle			%% maketitle は使わない
+
+\noindent
+\textbf{\large 進捗レポート (\stdid, \sirname\ \firstname)}		%%  固定
+
+%%
+\section*{今週の進捗サマリ}			%% 固定
+
+\begin{itemize}
+\item 
+\item CartPole-v0のPyTorch実装
+\end{itemize}
+
+%%
+\section{進捗詳細}					%% 固定
+\subsection{None}
+\subsection{CartPole-v0のPyTorch実装}
+強化学習のHello world的タスクである\texttt{Open AI Gym}の\texttt{Atari CartPole-v0}を
+\texttt{PyTorch}により実装した．本タスクは左右に動かせる台を使い上に立つ棒をいかに倒さずに動かす
+事ができるかを学ぶタスクである．今週は本タスクをPyTorchにより実装し，ローカルの\texttt{Jupyter Lab}
+上と\texttt{Colaboratory}上で動作させた．コードはマイナビより出版されている本\cite{book1}を使用した．
+
+
+\section{今後の予定}
+今後は，まず強化学習におけるHello World扱いとなるCartPole-v0をPyTorchにより実装する．その後
+Atariの適度な難易度の問題をベンチマークとし，本提案モデルの実装を行う．実験は9月終了を目指し，10月
+以降修士論文の執筆及びAROB2020参加のためのAbstract提出を目指す．
+
+\begin{thebibliography}{1}
+  \bibitem{book1} 小川雄太郎，つくりながら学ぶ！深層強化学習 PyTorchによる実践プログラミング，マイナビ出版，2018
+\end{thebibliography}
+
+\end{document}
+
