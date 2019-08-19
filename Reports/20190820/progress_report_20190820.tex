@@ -54,24 +54,41 @@
 \section*{今週の進捗サマリ}			%% 固定
 
 \begin{itemize}
-\item 
+\item 最終面接に向けた準備
 \item CartPole-v0のPyTorch実装
 \end{itemize}
 
 %%
 \section{進捗詳細}					%% 固定
-\subsection{None}
+\subsection{最終面接に向けた準備}
+8月21日に行われる最終面接の準備を行っていた．具体的には，想定質問の作成，キャリアセンターでの相談・模擬面接
+などである．学校推薦を使用しているが，通常の選考と変わることなく，全力で臨みたいと考えている．
+
 \subsection{CartPole-v0のPyTorch実装}
 強化学習のHello world的タスクである\texttt{Open AI Gym}の\texttt{Atari CartPole-v0}を
 \texttt{PyTorch}により実装した．本タスクは左右に動かせる台を使い上に立つ棒をいかに倒さずに動かす
 事ができるかを学ぶタスクである．今週は本タスクをPyTorchにより実装し，ローカルの\texttt{Jupyter Lab}
 上と\texttt{Colaboratory}上で動作させた．コードはマイナビより出版されている本\cite{book1}を使用した．
+\texttt{Colaboratory}上で動作させた結果を図1に示す．
+\begin{figure}[htbp]
+  \begin{center}
+    \includegraphics[width=14cm]{fig1.png}
+    \caption{\texttt{CartPole-v0}の実行結果}
+  \end{center}
+  \label{fig1}
+\end{figure}
+図1では\texttt{Colaboratory}の\texttt{ipnb}ノートブック上に学習結果の動画を出力した画像である．
+\texttt{Colaboratory}は特殊環境(Google Compute Engine上のコンテナであるためGUI)であるため，
+動画埋め込み出力の実装に時間がかかってしまっていた．
 
 
 \section{今後の予定}
-今後は，まず強化学習におけるHello World扱いとなるCartPole-v0をPyTorchにより実装する．その後
-Atariの適度な難易度の問題をベンチマークとし，本提案モデルの実装を行う．実験は9月終了を目指し，10月
-以降修士論文の執筆及びAROB2020参加のためのAbstract提出を目指す．
+今回は単純にローカル環境と\texttt{Colaboratory}上で動作確認を行っただけであるため，コードの理解を含め，
+\texttt{Breakout}の実装へ入りたい．なお，\texttt{PyTorch}による実装では，学習ループを自前で用意するため，
+Sync型(仮称)案を比較的簡単に実装できると考えている．現時点では，\texttt{Agent} Classを複数持つリストで順に
+1サイクル実行，各\texttt{Agent}で評価値(Reward)が最も高い\texttt{Agent}を選択することなどを考えている．
+メインの庵であるDurabilityについては，特定エピソード数Reward値が上昇しないあるいは下降した場合，そのAgentの
+Durable valueを減少させることなどを想定している．
 
 \begin{thebibliography}{1}
   \bibitem{book1} 小川雄太郎，つくりながら学ぶ！深層強化学習 PyTorchによる実践プログラミング，マイナビ出版，2018
