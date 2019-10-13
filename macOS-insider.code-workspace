@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "/Users/mitsuhiro/Workspace/VScode"
+		},
+		{
+			"path": "/Users/mitsuhiro/Repositories/dotfiles"
+		}
+	],
+	"settings": {
+		"workbench.editor.enablePreviewFromQuickOpen": false
+	}
+}
