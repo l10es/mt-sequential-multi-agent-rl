@@ -10,7 +10,7 @@ from hyperdash import Experiment
 def create_agents():
     agents = []
     # TODO: Change to "Read from file" logic about CONSTANTS value.
-    CONSTANTS0 = utils.Constants()
+    CONSTANTS0 = utils.Hyperparameter()
 
     policy_net_0 = models.DQN(n_actions=4).to()
     target_net_0 = models.DQN(n_actions=4).to(CONSTANTS0.DEVICE)

@@ -28,7 +28,7 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
-class Constants:
+class Hyperparameter:
     def __init__(self, batch_size=32, gamma=0.99, eps_start=1, eps_end=0.02, eps_decay=1000000, target_update=1000,
                  default_durability=1000, learning_rate=1e-4, initial_memory=10000,
                  default_durability_decreased_level=1,
