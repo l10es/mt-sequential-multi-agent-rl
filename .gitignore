@@ -741,7 +741,3 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.gitignore.io/api/tex,latex,linux,macos,python,windows,pycharm,intellij,jupyternotebook,visualstudiocode,jupyternotebooks
-
-# For private
-codes/src/Runs
-codes/Runs

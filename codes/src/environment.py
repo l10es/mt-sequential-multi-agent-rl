@@ -27,26 +27,11 @@ class Environment:
     def __init__(self, constant):
         self.CONSTANT = constant
         self.env = gym.make(self.CONSTANT.ENV_NAME)
-        self.env = self.make_env(self.env)
+        self.env = _make_env(self.env)
 
     def get_env(self):
         return self.env
 
-    def make_env(self, env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False):
-        if episodic_life:
-            env = EpisodicLifeEnv(env)
-
-        env = NoopResetEnv(self.env, noop_max=30)
-        env = MaxAndSkipEnv(self.env, skip=4)
-        if 'FIRE' in env.unwrapped.get_action_meanings():
-            env = FireResetEnv(self.env)
-
-        env = WarpFrame(env)
-        if stack_frames:
-            env = FrameStack(env, 4)
-        if clip_rewards:
-            env = ClipRewardEnv(env)
-        return env
     # def get_state(obs):
     #     state = np.array(obs)
     #     state = state.transpose((2, 0, 1))
