@@ -1,7 +1,6 @@
 import os
 import random
 import time
-import json
 from collections import namedtuple
 
 import numpy as np
@@ -28,14 +27,13 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
-class Hyperparameter:
+class Constants:
     def __init__(self, batch_size=32, gamma=0.99, eps_start=1, eps_end=0.02, eps_decay=1000000, target_update=1000,
                  default_durability=1000, learning_rate=1e-4, initial_memory=10000,
                  default_durability_decreased_level=1,
                  default_durability_increased_level=1, default_check_frequency=80, default_healing_frequency=100,
                  env_name="PongNoFrameskip-v4", exp_name="PongNoFrameskip-v4", render=False,
-                 run_name="videos_proposal", output_directory_path="../Runs",
-                 hyper_dash=False, parameters_name="default"):
+                 run_name="videos_proposal", output_directory_path="../Runs"):
         # Runtime settings
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.TRANSITION = namedtuple('Transion', ('state', 'action', 'next_state', 'reward'))
@@ -64,7 +62,7 @@ class Hyperparameter:
         self.ENV_NAME = env_name
         self.EXP_NAME = exp_name + "_" + time_stamp
         self.RENDER = render
-        self.HYPER_DASH = hyper_dash
+
         self.RUN_NAME = run_name
         self.OUTPUT_DIRECTORY_PATH = os.path.abspath(os.path.join(os.path.curdir,
                                                                   output_directory_path,
@@ -73,7 +71,6 @@ class Hyperparameter:
         self.TRAIN_LOG_FILE_PATH = self.OUTPUT_DIRECTORY_PATH + "/" + self.ENV_NAME + "_train_" + time_stamp + ".log"
         self.TEST_LOG_FILE_PATH = self.OUTPUT_DIRECTORY_PATH + "/" + self.ENV_NAME + "_test_" + time_stamp + ".log"
         self.PARAMETER_LOG_FILE_PATH = self.OUTPUT_DIRECTORY_PATH + "/" + self.ENV_NAME + "_params_" + time_stamp + ".json"
-        self.PARAMETERS_NAME = parameters_name
 
         if not os.path.exists(self.OUTPUT_DIRECTORY_PATH):
             os.makedirs(self.OUTPUT_DIRECTORY_PATH)
@@ -92,9 +89,4 @@ class Hyperparameter:
                              "TRAIN_LOG_FILE_PATH": self.TRAIN_LOG_FILE_PATH,
                              "TEST_LOG_FILE_PATH": self.TEST_LOG_FILE_PATH,
                              "PARAMETER_LOG_FILE_PATH": self.PARAMETER_LOG_FILE_PATH,
-                             "RENDER": str(self.RENDER),
-                             "PARAMETERS_NAME": self.PARAMETERS_NAME}
-
-        json_params = json.dumps(self.HYPER_PARAMS)
-        with open(self.PARAMETER_LOG_FILE_PATH, 'wt') as f:
-            f.write(json_params)
+                             "RENDER": str(self.RENDER)}
