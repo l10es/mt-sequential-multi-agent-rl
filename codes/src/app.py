@@ -41,9 +41,10 @@ def create_agents():
     agents = []
     # TODO: Change to "Read from file" logic about CONSTANTS value.
     CONSTANTS0 = utils.Hyperparameter()
+    print(CONSTANTS0.DEVICE)
 
     # TODO: Change code to call _create_agents function
-    policy_net_0 = models.DQN(n_actions=4).to()
+    policy_net_0 = models.DQN(n_actions=4).to(CONSTANTS0.DEVICE)
     target_net_0 = models.DQN(n_actions=4).to(CONSTANTS0.DEVICE)
     optimizer_0 = optim.Adam(policy_net_0.parameters(), lr=CONSTANTS0.LEARNING_RATE)
     agents.append(Agent(policy_net_0, target_net_0, CONSTANTS0.DEFAULT_DURABILITY,

@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from replaymemory import ReplayMemory
 
 import utils
-from utils import Constants
 
 
 class Agent:
