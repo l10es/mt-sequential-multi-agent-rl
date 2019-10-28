@@ -1,5 +1,6 @@
 from agent import Agent
 from torch import optim
+import sys
 import models
 import utils
 import torch
@@ -7,11 +8,41 @@ from environment import Environment
 from hyperdash import Experiment
 
 
+def _create_agents(configs):
+    try:
+        agents = []
+        for args in configs:
+            hyper_parameters = utils.Hyperparameter()
+            if args["model"] == "DQN":
+                policy_net = models.DQN(n_actions=4).to()
+                target_net = models.DQN(n_actions=4).to(hyper_parameters.DEVICE)
+            elif args["model"] == "DDQN":
+                policy_net = models.DDQN(n_actions=4).to()
+                target_net = models.DDQN(n_actions=4).to(hyper_parameters.DEVICE)
+            elif args["model"] == "NonBatchNormalizedDQN":
+                policy_net = models.NonBatchNormalizedDQN(n_actions=4).to()
+                target_net = models.NonBatchNormalizedDQN(n_actions=4).to(hyper_parameters.DEVICE)
+            # elif args["model"] == "RamDQN":
+            #     policy_net = models.RamDQN(n_actions=4).to()
+            #     target_net = models.RamDQN(n_actions=4).to(hyper_parameters.DEVICE)
+            else:
+                policy_net = models.DQN(n_actions=4).to()
+                target_net = models.DQN(n_actions=4).to(hyper_parameters.DEVICE)
+            optimizer = optim.Adam(policy_net.parameters(), lr=hyper_parameters.LEARNING_RATE)
+            agents.append(Agent(policy_net, target_net, hyper_parameters.DEFAULT_DURABILITY, optimizer, configs["name"],
+                                hyper_parameters))
+        return agents
+    except KeyError:
+        print("P_RuntimeError: Some arguments is missing.")
+        sys.exit(1)
+
+
 def create_agents():
     agents = []
     # TODO: Change to "Read from file" logic about CONSTANTS value.
     CONSTANTS0 = utils.Hyperparameter()
 
+    # TODO: Change code to call _create_agents function
     policy_net_0 = models.DQN(n_actions=4).to()
     target_net_0 = models.DQN(n_actions=4).to(CONSTANTS0.DEVICE)
     optimizer_0 = optim.Adam(policy_net_0.parameters(), lr=CONSTANTS0.LEARNING_RATE)
@@ -26,7 +57,7 @@ def create_agents():
                         optimizer_1, "cnn-ddqn0", CONSTANTS0))
     agents.append(Agent(policy_net_1, target_net_1, CONSTANTS0.DEFAULT_DURABILITY,
                         optimizer_1, "cnn-ddqn1", CONSTANTS0))
-
+    
     core_agent = Agent(policy_net_0, target_net_0, CONSTANTS0.DEFAULT_DURABILITY, optimizer_0, "core", CONSTANTS0)
     return agents, core_agent
 
