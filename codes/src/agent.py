@@ -37,6 +37,7 @@ class Agent:
         self.memory = ReplayMemory(self.CONSTANTS.MEMORY_SIZE)
         self.steps_done = 0
         self.total_reward = 0.0
+        self.reward = 0.0
 
     def select_action(self, state):
         sample = random.random()
@@ -128,7 +129,11 @@ class Agent:
         self.done = done
 
     def set_total_reward(self, reward):
-        self.reward = self.reward + reward
+        self.reward = reward
+        self.total_reward += reward
+
+    def get_reward(self):
+        return self.reward
 
     def get_total_reward(self):
         return self.total_reward

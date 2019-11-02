@@ -244,6 +244,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 agent.set_step_retrun_value(obs, reward, done, info)
 
                 agent.set_total_reward(reward)
+                # Agent reward value
+                print("Agent:{}, Reward:{}".format(agent.name, agent.get_reward()))
 
                 if not done:
                     next_state = utils.get_state(obs)
@@ -271,6 +273,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
             best_agent_index = random.choice(best_agents)
             best_agent = agents[best_agent_index]
+
+            # 3.5 Only best_agent can heal own durability at specific iteration
             if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0:
                 best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
 
@@ -329,7 +333,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
 
         exp.metric("total_reward", core_agent.get_total_reward())
         out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
-            core_agent.steps_done, episode, t, core_agent.total_reward)
+            core_agent.steps_done, episode, t, core_agent.get_total_reward())
         if episode % 20 == 0:
             print(out_str)
             out_str = str("\n" + out_str + "\n")
