@@ -31,7 +31,7 @@ class DQN(torch.jit.ScriptModule):
             nn.Linear(512, n_actions)
         )
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def forward(self, x):
         x = x.float() / 255
         x = self.convs(x)
@@ -75,7 +75,7 @@ class DDQN(torch.jit.ScriptModule):
         self.fc_adv.register_backward_hook(scale_grads_hook)
         self.fc_val.register_backward_hook(scale_grads_hook)
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def forward(self, x):
         x = x.float() / 255
         x = self.convs(x)
@@ -86,7 +86,7 @@ class DDQN(torch.jit.ScriptModule):
 
         return val + adv - adv.mean(1).unsqueeze(1)
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def value(self, x):
         x = x.float() / 255
         x = self.convs(x)
@@ -107,7 +107,7 @@ class LanderDQN(torch.jit.ScriptModule):
             nn.Linear(nhid, n_actions)
         )
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def forward(self, x):
         x = self.layers(x)
         return x
@@ -215,13 +215,13 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
         # 0. Initialize the environment, state and agent params
         obs = core_env.reset()
         core_state = utils.get_state(obs)
-        core_agent.total_reward = 0.0
+        core_agent.reset_total_reward()
         core_agent.set_state(core_state)
         for agent in agents:
             obs = agent.get_env().reset()
             state = utils.get_state(obs)
             agent.set_state(state)
-            agent.total_reward = 0.0
+            agent.reset_total_reward()
             # agent.durability = DEFAULT_DURABILITY
 
         for t in count():
@@ -235,17 +235,19 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # 1. Select action from environment of each agent
             for agent in agents:
                 agent.set_env(core_agent.get_env())
+                agent.set_state(core_agent.get_state())
                 action = agent.select_action(agent.get_state())
                 agent.set_action(action)
 
             # 2. Proceed step of each agent
             for agent in agents:
                 obs, reward, done, info = agent.get_env().step(agent.get_action())
-                agent.set_step_retrun_value(obs, reward, done, info)
+                agent.set_step_retrun_value(obs, done, info)
 
                 agent.set_total_reward(reward)
                 # Agent reward value
-                print("Agent:{}, Reward:{}".format(agent.name, agent.get_reward()))
+                # print("Agent:{}, Reward:{}, State:{}".format(agent.name, reward, agent.get_state()))
+                # print("Agent:{}, Reward:{}".format(agent.name, reward))
 
                 if not done:
                     next_state = utils.get_state(obs)
@@ -253,9 +255,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                     next_state = None
 
                 reward = torch.tensor([reward], device=agent.CONSTANTS.DEVICE)
-
-                agent.memory.push(agent.get_state(), agent.get_action().to('cpu'),
-                                  next_state, reward.to('cpu'))
+                agent.memory.push(agent.get_state(), agent.get_action().to('cpu'), next_state, reward.to('cpu'))
                 agent.set_state(next_state)
 
                 if agent.steps_done > agent.CONSTANTS.INITIAL_MEMORY:
@@ -292,9 +292,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             core_agent_action = best_agent.get_action()
             core_agent.set_action(core_agent_action)
 
-            core_obs, core_reward, core_done, core_info = core_agent.get_env().step(
-                core_agent.get_action())
-            core_agent.set_step_retrun_value(core_obs, core_reward, core_done, core_info)
+            core_obs, core_reward, core_done, core_info = core_agent.get_env().step(core_agent.get_action())
+            core_agent.set_step_retrun_value(core_obs, core_done, core_info)
 
             core_agent.set_done_state(core_done)
             core_agent.set_total_reward(core_reward)
@@ -306,9 +305,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
 
             core_reward = torch.tensor([core_reward], device=core_agent.CONSTANTS.DEVICE)
 
-            core_agent.memory.push(core_agent.get_state(),
-                                   core_agent.get_action().to('cpu'),
-                                   core_next_state, core_reward.to('cpu'))
+            core_agent.memory.push(core_agent.get_state(), core_agent.get_action().to('cpu'), core_next_state,
+                                   core_reward.to('cpu'))
             core_agent.set_state(core_next_state)
 
             if core_agent.steps_done > core_agent.CONSTANTS.INITIAL_MEMORY:
@@ -321,7 +319,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 print("\n")
                 break
 
-        # 6. Swap agent
+        # 6. Kill agent
         if len(agents) > 1 and episode % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
             for agent, i in zip(agents, range(len(agents))):
                 if agent.durability <= 0:
@@ -344,6 +342,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
         with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'wt') as f:
             f.write(out_str)
     core_env.close()
+    for agent in agents:
+        agent.get_env().close()
+    return best_agent
 
 
 def test(env, n_episodes, policy, exp, constants, render=True):
