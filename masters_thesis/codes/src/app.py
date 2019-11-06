@@ -127,6 +127,12 @@ def create_envs(agents, core_agent):
     return envs, core_env
 
 
+def create_test_envs(agent):
+    test_env = Environment(agent.CONSTANTS)
+    test_env = test_env.get_env()
+    return test_env
+
+
 def hyper_dash_settings(exp_name):
     exp = Experiment(exp_name, capture_io=False)
     # print("Learning rate:{}".format(LEARNING_RATE))
@@ -148,6 +154,7 @@ def main():
     # Main function flow
     # 0. Load experiment conditions
     exp = hyper_dash_settings("DUMMY")
+    exp_test = hyper_dash_settings("DUMMY_TEST")
 
     # 1. Create Agents
     agents, core_agent = create_agents()
@@ -161,13 +168,12 @@ def main():
     torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
 
     # 4. Test model
-    # test_env = Environment()
-    # test_env = env.get_env()
-    #
-    # policy_net = torch.load(output_directory + "/dqn_pong_model")
+    test_env = create_test_envs(best_agent)
+
+    policy_net = torch.load(best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
     # exp_test = Experiment(str(EXP_NAME + "_test_step"), capture_io=False)
-    # test(test_env, 1, policy_net, exp_test, render=False)
-    # exp_test.end()
+    models.test(test_env, 1, policy_net, exp_test, render=False, agent=best_agent)
+    exp_test.end()
     pass
 
 

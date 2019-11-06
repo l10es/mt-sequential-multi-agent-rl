@@ -34,7 +34,7 @@ class Hyperparameter:
                  default_durability_decreased_level=1,
                  default_durability_increased_level=1, default_check_frequency=80, default_healing_frequency=100,
                  env_name="PongNoFrameskip-v4", exp_name="PongNoFrameskip-v4", render=False,
-                 run_name="videos_proposal", output_directory_path="../Runs",
+                 run_name="videos_proposal", output_directory_path="./Runs",
                  hyper_dash=False, parameters_name="default"):
         # Runtime settings
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

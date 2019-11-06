@@ -14,7 +14,7 @@ SQRT2 = math.sqrt(2.0)
 ACT = nn.ReLU
 
 
-class DQN(torch.jit.ScriptModule):
+class DQN(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
         super(DQN, self).__init__()
         self.convs = nn.Sequential(
@@ -39,13 +39,13 @@ class DQN(torch.jit.ScriptModule):
         return self.fc(x)
 
 
-class DDQN(torch.jit.ScriptModule):
+class DDQN(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
-        __constants__ = ['n_actions']
+        # __constants__ = ['n_actions']
 
         super(DDQN, self).__init__()
 
-        self.n_actions = n_actions
+        # self.n_actions = n_actions
 
         self.convs = nn.Sequential(
             nn.Conv2d(in_channels, 32, kernel_size=8, stride=4),
@@ -67,13 +67,13 @@ class DDQN(torch.jit.ScriptModule):
             nn.Linear(512, 1)
         )
 
-        def scale_grads_hook(module, grad_out, grad_in):
-            """scale gradient by 1/sqrt(2) as in the original paper"""
-            grad_out = tuple(map(lambda g: g / SQRT2, grad_out))
-            return grad_out
-
-        self.fc_adv.register_backward_hook(scale_grads_hook)
-        self.fc_val.register_backward_hook(scale_grads_hook)
+        # def scale_grads_hook(module, grad_out, grad_in):
+        #     """scale gradient by 1/sqrt(2) as in the original paper"""
+        #     grad_out = tuple(map(lambda g: g / SQRT2, grad_out))
+        #     return grad_out
+        #
+        # self.fc_adv.register_backward_hook(scale_grads_hook)
+        # self.fc_val.register_backward_hook(scale_grads_hook)
 
     # @torch.jit.script_method
     def forward(self, x):
@@ -86,16 +86,16 @@ class DDQN(torch.jit.ScriptModule):
 
         return val + adv - adv.mean(1).unsqueeze(1)
 
-    # @torch.jit.script_method
-    def value(self, x):
-        x = x.float() / 255
-        x = self.convs(x)
-        x = x.view(x.size(0), -1)
+    # # @torch.jit.script_method
+    # def value(self, x):
+    #     x = x.float() / 255
+    #     x = self.convs(x)
+    #     x = x.view(x.size(0), -1)
+    #
+    #     return self.fc_val(x)
 
-        return self.fc_val(x)
 
-
-class LanderDQN(torch.jit.ScriptModule):
+class LanderDQN(nn.Module):
     def __init__(self, n_state, n_actions, nhid=64):
         super(LanderDQN, self).__init__()
 
@@ -113,7 +113,7 @@ class LanderDQN(torch.jit.ScriptModule):
         return x
 
 
-class RamDQN(torch.jit.ScriptModule):
+class RamDQN(nn.Module):
     def __init__(self, n_state, n_actions):
         super(RamDQN, self).__init__()
         self.layers = nn.Sequential(
@@ -126,7 +126,7 @@ class RamDQN(torch.jit.ScriptModule):
             nn.Linear(64, n_actions)
         )
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def forward(self, x):
         return self.layers(x)
 
@@ -264,6 +264,10 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                     if agent.steps_done % agent.CONSTANTS.TARGET_UPDATE == 0:
                         agent.target_net.load_state_dict(agent.policy_net.state_dict())
 
+            # print("\n")
+            print([agent.get_total_reward() for agent in agents])
+            # print(str(t) + " ", end='')
+
             # ---------------
             # Proposal method
             # ---------------
@@ -279,7 +283,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
 
             # Best_agent information
-            exp.log("Current best agent: {}".format(best_agent.name))
+            # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
+            #                                                              [agent.durability() for agent in agents]))
+            print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
 
             # 4. Check the agent durability in specified step
             if t % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
@@ -330,6 +336,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
         # ----------------------
 
         exp.metric("total_reward", core_agent.get_total_reward())
+        exp.metric("steps", t)
         out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
             core_agent.steps_done, episode, t, core_agent.get_total_reward())
         if episode % 20 == 0:
@@ -347,26 +354,26 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
     return best_agent
 
 
-def test(env, n_episodes, policy, exp, constants, render=True):
+def test(env, n_episodes, policy, exp, agent, render=True):
     # Save video as mp4 on specified directory
-    env = gym.wrappers.Monitor(env, './videos/' + 'dqn_pong_video')
+    _env = gym.wrappers.Monitor(env, agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + '/videos/dqn_pong_video')
     for episode in range(n_episodes):
-        obs = env.reset()
-        state = env.get_state(obs)
+        obs = _env.reset()
+        state = utils.get_state(obs)
         total_reward = 0.0
         for t in count():
             action = policy(state.to('cuda')).max(1)[1].view(1,1)
 
             if render:
-                env.render()
+                _env.render()
                 time.sleep(0.02)
 
-            obs, reward, done, info = env.step(action)
+            obs, reward, done, info = _env.step(action)
 
             total_reward += reward
 
             if not done:
-                next_state = env.get_state(obs)
+                next_state = utils.get_state(obs)
             else:
                 next_state = None
 
@@ -377,7 +384,7 @@ def test(env, n_episodes, policy, exp, constants, render=True):
                     episode, total_reward)
                 print(out_str)
                 exp.log(out_str)
-                with open(constants.TEST_LOG_FILE_NAME, 'wt') as f:
+                with open(agent.CONSTANTS.TEST_LOG_FILE_PATH, 'wt') as f:
                     f.write(out_str)
                 break
 
