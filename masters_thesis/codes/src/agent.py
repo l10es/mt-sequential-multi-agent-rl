@@ -37,6 +37,8 @@ class Agent:
         self.memory = ReplayMemory(self.CONSTANTS.MEMORY_SIZE)
         self.steps_done = 0
         self.total_reward = 0.0
+        self.reward = 0.0
+        self.n_best = 0
 
     def select_action(self, state):
         sample = random.random()
@@ -47,8 +49,7 @@ class Agent:
             with torch.no_grad():
                 return self.policy_net(state.to('cuda')).max(1)[1].view(1, 1)
         else:
-            return torch.tensor([[random.randrange(4)]],
-                                device=self.CONSTANTS.DEVICE, dtype=torch.long)
+            return torch.tensor([[random.randrange(4)]], device=self.CONSTANTS.DEVICE, dtype=torch.long)
 
     def optimize_model(self):
         if len(self.memory) < self.CONSTANTS.BATCH_SIZE:
@@ -69,9 +70,8 @@ class Agent:
         actions = tuple((map(lambda a: torch.tensor([[a]], device='cuda'), batch.action)))
         rewards = tuple((map(lambda r: torch.tensor([r], device='cuda'), batch.reward)))
 
-        non_final_mask = torch.tensor(
-            tuple(map(lambda s: s is not None, batch.next_state)),
-            device=utils.get_device(), dtype=torch.bool)
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
+                                      device=utils.get_device(), dtype=torch.bool)
 
         non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to('cuda')
 
@@ -79,8 +79,7 @@ class Agent:
         action_batch = torch.cat(actions)
         reward_batch = torch.cat(rewards)
 
-        state_action_values = self.policy_net(
-            state_batch).gather(1, action_batch)
+        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
         next_state_values = torch.zeros(self.CONSTANTS.BATCH_SIZE, device=self.CONSTANTS.DEVICE)
         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
@@ -128,14 +127,23 @@ class Agent:
         self.done = done
 
     def set_total_reward(self, reward):
-        self.reward = self.reward + reward
+        self.reward = reward
+        self.total_reward += reward
+
+    def reset_total_reward(self):
+        self.total_reward = 0.0
+
+    def get_reward(self):
+        return self.reward
+
+    def best_counter(self):
+        self.n_best += 1
 
     def get_total_reward(self):
         return self.total_reward
 
-    def set_step_retrun_value(self, obs, reward, done, info):
+    def set_step_retrun_value(self, obs, done, info):
         self.obs = obs
-        self.reward = reward
         self.done = done
         self.info = info
 

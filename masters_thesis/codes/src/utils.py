@@ -30,11 +30,11 @@ def get_state(obs):
 
 class Hyperparameter:
     def __init__(self, batch_size=32, gamma=0.99, eps_start=1, eps_end=0.02, eps_decay=1000000, target_update=1000,
-                 default_durability=1000, learning_rate=1e-4, initial_memory=10000,
+                 default_durability=1000, learning_rate=1e-4, initial_memory=10000, n_episode=400,
                  default_durability_decreased_level=1,
                  default_durability_increased_level=1, default_check_frequency=80, default_healing_frequency=100,
                  env_name="PongNoFrameskip-v4", exp_name="PongNoFrameskip-v4", render=False,
-                 run_name="videos_proposal", output_directory_path="../Runs",
+                 run_name="videos_proposal", output_directory_path="./Runs",
                  hyper_dash=False, parameters_name="default"):
         # Runtime settings
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -47,6 +47,7 @@ class Hyperparameter:
         # Hyper parameters
         self.BATCH_SIZE = batch_size
         self.GAMMA = gamma
+        self.N_EPISODE = n_episode
         self.EPS_START = eps_start
         self.EPS_END = eps_end
         self.EPS_DECAY = eps_decay
@@ -81,6 +82,7 @@ class Hyperparameter:
         self.HYPER_PARAMS = {"BATCH_SIZE": self.BATCH_SIZE, "GAMMA": self.GAMMA, "EPS_START": self.EPS_START,
                              "EPS_END": self.EPS_END, "EPS_DECAY": self.EPS_DECAY,
                              "TARGET_UPDATE": self.TARGET_UPDATE,
+                             "N_EPISODE": self.N_EPISODE,
                              "DEFAULT_DURABILITY": self.DEFAULT_DURABILITY,
                              "LEARNING_RATE": self.LEARNING_RATE,
                              "INITIAL_MEMORY": self.INITIAL_MEMORY, "MEMORY_SIZE": self.MEMORY_SIZE,
