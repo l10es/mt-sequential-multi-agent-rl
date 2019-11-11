@@ -275,8 +275,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # 3. Select best agent in this step
             reward_list = [agent.get_total_reward() for agent in agents]
             best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
-            best_agent_index = random.choice(best_agents)
+            best_agent_index = random.choice(best_agents)  # TODO: CHANGE CHOICE METHOD RANDOM TO ROULETTE
             best_agent = agents[best_agent_index]
+            best_agent.best_counter()
 
             # 3.5 Only best_agent can heal own durability at specific iteration
             if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0:

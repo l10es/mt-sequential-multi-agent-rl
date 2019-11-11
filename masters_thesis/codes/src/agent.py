@@ -38,6 +38,7 @@ class Agent:
         self.steps_done = 0
         self.total_reward = 0.0
         self.reward = 0.0
+        self.n_best = 0
 
     def select_action(self, state):
         sample = random.random()
@@ -134,6 +135,9 @@ class Agent:
 
     def get_reward(self):
         return self.reward
+
+    def best_counter(self):
+        self.n_best += 1
 
     def get_total_reward(self):
         return self.total_reward
