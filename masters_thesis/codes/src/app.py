@@ -206,16 +206,18 @@ def main():
     envs, core_env = create_envs(agents, core_agent)
 
     # 3. Train model
-    best_agent = models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
+    # best_agent = models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
+    models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
     exp.end()
-    torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
+    # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
+    torch.save(core_agent.policy_net, core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
 
     # 4. Test model
-    test_env = create_test_envs(best_agent)
+    test_env = create_test_envs(core_agent)
 
-    policy_net = torch.load(best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
+    policy_net = torch.load(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
     exp_test = hyper_dash_settings("DUMMY_TEST")
-    models.test(test_env, 1, policy_net, exp_test, render=False, agent=best_agent)
+    models.test(test_env, 1, policy_net, exp_test, render=False, agent=core_agent)
     exp_test.end()
     # pass
 

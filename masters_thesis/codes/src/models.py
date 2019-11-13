@@ -229,40 +229,42 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             #     print(str(t) + " ", end='')
             # else:
             #     print("\n")
-            #     print([agent.get_durability() for agent in agents])
+            exp.log("agent_durability:{}".format([agent.get_durability() for agent in agents]))
             #     print(str(t) + " ", end='')
 
             # 1. Select action from environment of each agent
             for agent in agents:
-                agent.set_env(core_agent.get_env())
-                agent.set_state(core_agent.get_state())
-                action = agent.select_action(agent.get_state())
-                agent.set_action(action)
+                if agent.get_state() is not None:
+                    # agent.set_env(core_agent.get_env())
+                    agent.set_state(core_agent.get_state())
+                    action = agent.select_action(agent.get_state())
+                    agent.set_action(action)
 
             # 2. Proceed step of each agent
             for agent in agents:
-                obs, reward, done, info = agent.get_env().step(agent.get_action())
-                agent.set_step_retrun_value(obs, done, info)
+                if agent.get_state() is not None:
+                    obs, reward, done, info = agent.get_env().step(agent.get_action())
+                    agent.set_step_retrun_value(obs, done, info)
 
-                agent.set_total_reward(reward)
-                # Agent reward value
-                # print("Agent:{}, Reward:{}, State:{}".format(agent.name, reward, agent.get_state()))
-                # print("Agent:{}, Reward:{}".format(agent.name, reward))
+                    agent.set_total_reward(reward)
+                    # Agent reward value
+                    # print("Agent:{}, Reward:{}, State:{}".format(agent.name, reward, agent.get_state()))
+                    # print("Agent:{}, Reward:{}".format(agent.name, reward))
 
-                if not done:
-                    next_state = utils.get_state(obs)
-                else:
-                    next_state = None
+                    if not done:
+                        next_state = utils.get_state(obs)
+                    else:
+                        next_state = None
 
-                reward = torch.tensor([reward], device=agent.CONSTANTS.DEVICE)
-                agent.memory.push(agent.get_state(), agent.get_action().to('cpu'), next_state, reward.to('cpu'))
-                agent.set_state(next_state)
+                    reward = torch.tensor([reward], device=agent.CONSTANTS.DEVICE)
+                    agent.memory.push(agent.get_state(), agent.get_action().to('cpu'), next_state, reward.to('cpu'))
+                    agent.set_state(next_state)
 
-                if agent.steps_done > agent.CONSTANTS.INITIAL_MEMORY:
-                    agent.optimize_model()
+                    if agent.steps_done > agent.CONSTANTS.INITIAL_MEMORY:
+                        agent.optimize_model()
 
-                    if agent.steps_done % agent.CONSTANTS.TARGET_UPDATE == 0:
-                        agent.target_net.load_state_dict(agent.policy_net.state_dict())
+                        if agent.steps_done % agent.CONSTANTS.TARGET_UPDATE == 0:
+                            agent.target_net.load_state_dict(agent.policy_net.state_dict())
 
             # print("\n")
             print([agent.get_total_reward() for agent in agents])
@@ -287,16 +289,23 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
             #                                                              [agent.durability() for agent in agents]))
             print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
+            # exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
 
             # 4. Check the agent durability in specified step
             if t % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
                 if len(agents) > 1:
                     index = [i for i in range(len(agents)) if i not in best_agents]
                     for i in index:
-                        agents[i].reduce_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_DECREASED_LEVEL)
+                        if agents[i].get_state() is not None:
+                            agents[i].reduce_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_DECREASED_LEVEL)
 
             # 5. Main step of core agent
-            core_agent_action = best_agent.get_action()
+            # core_agent_action = best_agent.get_action()
+            best_agent_state = best_agent.get_state()
+            policy_net_flag = best_agent.get_policy_net_flag()
+            best_agent_action = best_agent.get_action()
+
+            core_agent_action = core_agent.select_core_action(best_agent_state, policy_net_flag, best_agent_action)
             core_agent.set_action(core_agent_action)
 
             core_obs, core_reward, core_done, core_info = core_agent.get_env().step(core_agent.get_action())
@@ -326,6 +335,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 print("\n")
                 break
 
+            exp.log("Current core_agent reward: {}".format(core_agent.get_total_reward()))
+            # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
         # 6. Kill agent
         if len(agents) > 1 and episode % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
             for agent, i in zip(agents, range(len(agents))):
@@ -352,7 +363,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
     core_env.close()
     for agent in agents:
         agent.get_env().close()
-    return best_agent
+    # return best_agent
 
 
 def test(env, n_episodes, policy, exp, agent, render=True):
