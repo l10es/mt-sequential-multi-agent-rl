@@ -43,6 +43,7 @@ class Hyperparameter:
         time_stamp = str(int(time.time()))
         random.seed(0)
         np.random.seed(0)
+        torch.manual_seed(0)
 
         # Hyper parameters
         self.BATCH_SIZE = batch_size

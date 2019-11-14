@@ -236,7 +236,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             for agent in agents:
                 if agent.get_state() is not None:
                     # agent.set_env(core_agent.get_env())
-                    agent.set_state(core_agent.get_state())
+                    # agent.set_state(core_agent.get_state())
+                    # agent.set_init_state(core_agent.get_state())
+                    agent.set_init_state(agent.get_state())
                     action = agent.select_action(agent.get_state())
                     agent.set_action(action)
 
@@ -267,7 +269,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                             agent.target_net.load_state_dict(agent.policy_net.state_dict())
 
             # print("\n")
-            print([agent.get_total_reward() for agent in agents])
+            # print([agent.get_total_reward() for agent in agents])
+            exp.log([agent.get_total_reward() for agent in agents])
             # print(str(t) + " ", end='')
 
             # ---------------
@@ -280,6 +283,13 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             best_agent_index = random.choice(best_agents)  # TODO: CHANGE CHOICE METHOD RANDOM TO ROULETTE
             best_agent = agents[best_agent_index]
             best_agent.best_counter()
+            core_agent.memory.push(best_agent.get_init_state(), best_agent.get_action().to('cpu'),
+                                   best_agent.get_next_state(),
+                                   torch.tensor([best_agent.get_reward()], device=best_agent.CONSTANTS.DEVICE).to('cpu'))
+            # core_agent_action = best_agent.get_action()
+            best_agent_state = best_agent.get_state()
+            policy_net_flag = best_agent.get_policy_net_flag()
+            best_agent_action = best_agent.get_action()
 
             # 3.5 Only best_agent can heal own durability at specific iteration
             if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0:
@@ -288,8 +298,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # Best_agent information
             # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
             #                                                              [agent.durability() for agent in agents]))
-            print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
-            # exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
+            # print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
+            exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
 
             # 4. Check the agent durability in specified step
             if t % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
@@ -300,11 +310,6 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                             agents[i].reduce_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_DECREASED_LEVEL)
 
             # 5. Main step of core agent
-            # core_agent_action = best_agent.get_action()
-            best_agent_state = best_agent.get_state()
-            policy_net_flag = best_agent.get_policy_net_flag()
-            best_agent_action = best_agent.get_action()
-
             core_agent_action = core_agent.select_core_action(best_agent_state, policy_net_flag, best_agent_action)
             core_agent.set_action(core_agent_action)
 
@@ -320,7 +325,6 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 core_next_state = None
 
             core_reward = torch.tensor([core_reward], device=core_agent.CONSTANTS.DEVICE)
-
             core_agent.memory.push(core_agent.get_state(), core_agent.get_action().to('cpu'), core_next_state,
                                    core_reward.to('cpu'))
             core_agent.set_state(core_next_state)
@@ -335,7 +339,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 print("\n")
                 break
 
-            exp.log("Current core_agent reward: {}".format(core_agent.get_total_reward()))
+            exp.log("Current core_agent reward: {}\n".format(core_agent.get_total_reward()))
             # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
         # 6. Kill agent
         if len(agents) > 1 and episode % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:

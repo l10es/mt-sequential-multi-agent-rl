@@ -109,11 +109,21 @@ class Agent:
     def get_state(self):
         return self.state
 
+    def get_next_state(self):
+        return self.next_state
+
+    def get_init_state(self):
+        return self.init_state
+
     def get_policy_net_flag(self):
         return self.policy_net_flag
 
+    def set_init_state(self, state):
+        self.init_state = state
+
     def set_state(self, state):
         self.state = state
+        self.next_state = state
 
     def set_env(self, env):
         self.env = env
