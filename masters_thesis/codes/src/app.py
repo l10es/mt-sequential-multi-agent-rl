@@ -30,29 +30,32 @@ def _load_params(file_path):
     with open(file_path, 'r+') as f:
         reader = csv.reader(f)
         for agent_config in reader:
-            params_dict = {"name": agent_config[0],
-                           "model": agent_config[1],
-                           "batch_size": int(agent_config[2]),
-                           "gamma": float(agent_config[3]),
-                           "eps_start": int(agent_config[4]),
-                           "eps_end": float(agent_config[5]),
-                           "eps_decay": int(agent_config[6]),
-                           "target_update": int(agent_config[7]),
-                           "default_durability": int(agent_config[8]),
-                           "learning_rate": float(agent_config[9]),
-                           "initial_memory": int(agent_config[10]),
-                           "n_episode": int(agent_config[11]),
-                           "default_durability_decreased_level": int(agent_config[12]),
-                           "default_durability_increased_level": int(agent_config[13]),
-                           "default_check_frequency": int(agent_config[14]),
-                           "default_healing_frequency": int(agent_config[15]),
-                           "env_name": agent_config[16],
-                           "exp_name": agent_config[17],
-                           "render": bool(agent_config[18]),
-                           "run_name": agent_config[19],
-                           "output_directory_path": agent_config[20],
-                           "hyper_dash": bool(agent_config[21])}
-            config_list.append(params_dict)
+            try:
+                params_dict = {"name": agent_config[0],
+                               "model": agent_config[1],
+                               "batch_size": int(agent_config[2]),
+                               "gamma": float(agent_config[3]),
+                               "eps_start": int(agent_config[4]),
+                               "eps_end": float(agent_config[5]),
+                               "eps_decay": int(agent_config[6]),
+                               "target_update": int(agent_config[7]),
+                               "default_durability": int(agent_config[8]),
+                               "learning_rate": float(agent_config[9]),
+                               "initial_memory": int(agent_config[10]),
+                               "n_episode": int(agent_config[11]),
+                               "default_durability_decreased_level": int(agent_config[12]),
+                               "default_durability_increased_level": int(agent_config[13]),
+                               "default_check_frequency": int(agent_config[14]),
+                               "default_healing_frequency": int(agent_config[15]),
+                               "env_name": agent_config[16],
+                               "exp_name": agent_config[17],
+                               "render": bool(agent_config[18]),
+                               "run_name": agent_config[19],
+                               "output_directory_path": agent_config[20],
+                               "hyper_dash": bool(agent_config[21])}
+                config_list.append(params_dict)
+            except ValueError:
+                pass
     return config_list, exp_name
 
 

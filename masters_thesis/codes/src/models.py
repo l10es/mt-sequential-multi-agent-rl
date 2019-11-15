@@ -284,7 +284,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # for agent in agents:
             #     if agent.get_name() == best_agent.get_name():
             #         agent.best_counter()
-            if len(agents) != 0:
+            if len(agents) != 1:
                 core_agent.memory.push(best_agent.get_init_state(), best_agent.get_action().to('cpu'),
                                        best_agent.get_next_state(),
                                        torch.tensor([best_agent.get_reward()], device=best_agent.CONSTANTS.DEVICE).to(
