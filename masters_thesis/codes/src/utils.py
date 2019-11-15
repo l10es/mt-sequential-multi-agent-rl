@@ -28,6 +28,39 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
+def select_best_agent(agents):
+    """
+    Best agent selecting operation using roulette selection in Genetic algorithm (GA).
+    In this selection, we use the number of best_agent times as fitness value in GA.
+
+    Parameters
+    ----------
+    agents : List of Agent
+        List of internal agent that agent.env.step () has finished.
+
+    Returns
+    -------
+        if the number of best_agent times is 0 in all agent, function returns agent object selected by random.
+        Otherwise, function returns best_agent object selected based on roulette table.
+
+    """
+    evaluate_list = np.array([agent.get_n_best() for agent in agents if agent.get_n_best() != 0])
+    agent_list = [agent for agent in agents if agent.get_n_best != 0]
+    if len(evaluate_list) == 0:
+        reward_list = [agent.get_total_reward() for agent in agents]
+        best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
+        best_agent_index = random.choice(best_agents)
+        agent = agents[best_agent_index]
+        return agent
+    total = np.sum(evaluate_list)
+    r_fit = [v / total for v in evaluate_list]
+    probabilities = [np.sum(r_fit[:i+1]) for i in range(len(evaluate_list))]
+    rand = random.random()
+    for i, agent in enumerate(agent_list):
+        if rand <= probabilities[i]:
+            return agent
+
+
 class Hyperparameter:
     def __init__(self, batch_size=32, gamma=0.99, eps_start=1, eps_end=0.02, eps_decay=1000000, target_update=1000,
                  default_durability=1000, learning_rate=1e-4, initial_memory=10000, n_episode=400,

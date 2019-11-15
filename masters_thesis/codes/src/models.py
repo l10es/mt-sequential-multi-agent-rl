@@ -278,39 +278,47 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # ---------------
 
             # 3. Select best agent in this step
-            reward_list = [agent.get_total_reward() for agent in agents]
-            best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
-            best_agent_index = random.choice(best_agents)  # TODO: CHANGE CHOICE METHOD RANDOM TO ROULETTE
-            best_agent = agents[best_agent_index]
-            best_agent.best_counter()
-            core_agent.memory.push(best_agent.get_init_state(), best_agent.get_action().to('cpu'),
-                                   best_agent.get_next_state(),
-                                   torch.tensor([best_agent.get_reward()], device=best_agent.CONSTANTS.DEVICE).to('cpu'))
-            # core_agent_action = best_agent.get_action()
-            best_agent_state = best_agent.get_state()
-            policy_net_flag = best_agent.get_policy_net_flag()
-            best_agent_action = best_agent.get_action()
+            best_agent = utils.select_best_agent(agents)
+            # best_agent.best_counter()
+            [agent.best_counter() for agent in agents if agent.get_name() == best_agent.get_name()]
+            # for agent in agents:
+            #     if agent.get_name() == best_agent.get_name():
+            #         agent.best_counter()
+            if len(agents) != 0:
+                core_agent.memory.push(best_agent.get_init_state(), best_agent.get_action().to('cpu'),
+                                       best_agent.get_next_state(),
+                                       torch.tensor([best_agent.get_reward()], device=best_agent.CONSTANTS.DEVICE).to(
+                                           'cpu'))
+                # core_agent_action = best_agent.get_action()
+                # best_agent_state = best_agent.get_state()
+                # policy_net_flag = best_agent.get_policy_net_flag()
+                # best_agent_action = best_agent.get_action()
 
             # 3.5 Only best_agent can heal own durability at specific iteration
             if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0:
-                best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                # best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                [agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                 for agent in agents if agent.get_name() == best_agent.get_name()]
 
             # Best_agent information
             # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
             #                                                              [agent.durability() for agent in agents]))
             # print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
-            exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
+            exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.get_name(),
+                                                                   best_agent.get_total_reward()))
 
             # 4. Check the agent durability in specified step
             if t % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
                 if len(agents) > 1:
-                    index = [i for i in range(len(agents)) if i not in best_agents]
+                    # index = [i for i in range(len(agents)) if i not in best_agents]
+                    index = [i for i, agent in enumerate(agents) if agent.get_name() != best_agent.get_name()]
                     for i in index:
                         if agents[i].get_state() is not None:
                             agents[i].reduce_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_DECREASED_LEVEL)
 
             # 5. Main step of core agent
-            core_agent_action = core_agent.select_core_action(best_agent_state, policy_net_flag, best_agent_action)
+            # core_agent_action = core_agent.select_core_action(best_agent_state, policy_net_flag, best_agent_action)
+            core_agent_action = core_agent.select_action(core_agent.get_state())
             core_agent.set_action(core_agent_action)
 
             core_obs, core_reward, core_done, core_info = core_agent.get_env().step(core_agent.get_action())
@@ -339,7 +347,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 print("\n")
                 break
 
-            exp.log("Current core_agent reward: {}\n".format(core_agent.get_total_reward()))
+            exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
             # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
         # 6. Kill agent
         if len(agents) > 1 and episode % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
@@ -378,7 +386,7 @@ def test(env, n_episodes, policy, exp, agent, render=True):
         state = utils.get_state(obs)
         total_reward = 0.0
         for t in count():
-            action = policy(state.to('cuda')).max(1)[1].view(1,1)
+            action = policy(state.to('cuda')).max(1)[1].view(1, 1)
 
             if render:
                 _env.render()

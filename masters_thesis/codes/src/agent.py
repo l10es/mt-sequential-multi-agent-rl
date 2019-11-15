@@ -115,6 +115,9 @@ class Agent:
     def get_init_state(self):
         return self.init_state
 
+    def get_name(self):
+        return self.name
+
     def get_policy_net_flag(self):
         return self.policy_net_flag
 
@@ -164,6 +167,9 @@ class Agent:
 
     def best_counter(self):
         self.n_best += 1
+
+    def get_n_best(self):
+        return self.n_best
 
     def get_total_reward(self):
         return self.total_reward
