@@ -213,7 +213,7 @@ def main(file_path):
 
     # 3. Train model
     # best_agent = models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
-    models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
+    models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp, exp_name)
     exp.end()
     # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
     for agent in agents:

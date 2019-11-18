@@ -7,6 +7,7 @@ import gym
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
 
 import utils
 
@@ -182,7 +183,7 @@ class NonBatchNormalizedDQN(nn.Module):
         return self.head(x)
 
 
-def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=False):
+def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name, render=False,):
     """
     Training step.
 
@@ -208,9 +209,16 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
         The number of agent
     exp: Experiment
         The Experiment object used by hyperdash
+    exp_name: str
+        The name of experiment
     render: boolean, default False
         Flag for whether to render the environment
     """
+    internal_agent_writer = SummaryWriter(log_dir="{}/internal-agent/{}".format(
+        core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH, exp_name))
+    core_agent_writer = SummaryWriter(log_dir="{}/core_agent/{}".format(
+        core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH, exp_name))
+
     for episode in range(n_episodes):
         # 0. Initialize the environment, state and agent params
         obs = core_env.reset()
@@ -230,6 +238,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # else:
             #     print("\n")
             exp.log("agent_durability:{}".format([agent.get_durability() for agent in agents]))
+            for agent in agents:
+                internal_agent_writer.add_scalar("internal/durability/{}".format(agent.get_name()),
+                                                 agent.get_durability(), t)
             #     print(str(t) + " ", end='')
 
             # 1. Select action from environment of each agent
@@ -289,6 +300,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                                        best_agent.get_next_state(),
                                        torch.tensor([best_agent.get_reward()],
                                                     device=best_agent.CONSTANTS.DEVICE).to('cpu'))
+            for agent in agents:
+                internal_agent_writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
+                                                 agent.get_total_reward(), t)
                 # core_agent_action = best_agent.get_action()
                 # best_agent_state = best_agent.get_state()
                 # policy_net_flag = best_agent.get_policy_net_flag()
@@ -354,6 +368,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 break
 
             exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
+            core_agent_writer.add_scalar("core/reward/all_step",
+                                         core_agent.get_total_reward(), t)
             # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
 
         # ----------------------
@@ -380,7 +396,10 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             exp.log(out_str)
         with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'wt') as f:
             f.write(out_str)
+        core_agent_writer.add_scalar("core/reward/total", core_agent.get_total_reward(), episode)
     core_env.close()
+    core_agent_writer.close()
+    internal_agent_writer.close()
     for agent in agents:
         agent.get_env().close()
     # return best_agent
