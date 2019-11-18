@@ -284,18 +284,18 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # for agent in agents:
             #     if agent.get_name() == best_agent.get_name():
             #         agent.best_counter()
-            if len(agents) != 1:
+            if len(agents) > 1:
                 core_agent.memory.push(best_agent.get_init_state(), best_agent.get_action().to('cpu'),
                                        best_agent.get_next_state(),
-                                       torch.tensor([best_agent.get_reward()], device=best_agent.CONSTANTS.DEVICE).to(
-                                           'cpu'))
+                                       torch.tensor([best_agent.get_reward()],
+                                                    device=best_agent.CONSTANTS.DEVICE).to('cpu'))
                 # core_agent_action = best_agent.get_action()
                 # best_agent_state = best_agent.get_state()
                 # policy_net_flag = best_agent.get_policy_net_flag()
                 # best_agent_action = best_agent.get_action()
 
             # 3.5 Only best_agent can heal own durability at specific iteration
-            if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0:
+            if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0 and len(agents) > 1:
                 # best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
                 [agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
                  for agent in agents if agent.get_name() == best_agent.get_name()]
@@ -316,7 +316,13 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                         if agents[i].get_state() is not None:
                             agents[i].reduce_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_DECREASED_LEVEL)
 
-            # 5. Main step of core agent
+            # 5. Kill agent
+            if len(agents) > 1:
+                for i, agent in enumerate(agents):
+                    if agent.get_durability() <= 0:
+                        del agents[i]
+
+            # 6. Main step of core agent
             # core_agent_action = core_agent.select_core_action(best_agent_state, policy_net_flag, best_agent_action)
             core_agent_action = core_agent.select_action(core_agent.get_state())
             core_agent.set_action(core_agent_action)
@@ -349,15 +355,17 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
 
             exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
             # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
-        # 6. Kill agent
-        if len(agents) > 1 and episode % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
-            for agent, i in zip(agents, range(len(agents))):
-                if agent.durability <= 0:
-                    del agents[i]
 
         # ----------------------
         # End of proposal method
         # ----------------------
+
+        if episode % core_agent.CONSTANTS.MODEL_SAVING_FREQUENCY == 0:
+            for agent in agents:
+                torch.save(agent.policy_net,
+                           core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}".format(agent.get_name()))
+            torch.save(core_agent.policy_net,
+                       core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}".format(core_agent.get_name()))
 
         exp.metric("total_reward", core_agent.get_total_reward())
         exp.metric("steps", t)
@@ -378,9 +386,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
     # return best_agent
 
 
-def test(env, n_episodes, policy, exp, agent, render=True):
+def test(env, n_episodes, policy, exp, exp_name, agent, render=True):
     # Save video as mp4 on specified directory
-    _env = gym.wrappers.Monitor(env, agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + '/videos/dqn_pong_video')
+    _env = gym.wrappers.Monitor(env, agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + '/videos/{}'.format(exp_name))
     for episode in range(n_episodes):
         obs = _env.reset()
         state = utils.get_state(obs)
@@ -404,12 +412,9 @@ def test(env, n_episodes, policy, exp, agent, render=True):
             state = next_state
 
             if done:
-                out_str = "Finished Episode {} with reward {}".format(
-                    episode, total_reward)
-                print(out_str)
+                out_str = "Finished Episode {} with reward {}".format(episode, total_reward)
                 exp.log(out_str)
                 with open(agent.CONSTANTS.TEST_LOG_FILE_PATH, 'wt') as f:
                     f.write(out_str)
                 break
-
     env.close()

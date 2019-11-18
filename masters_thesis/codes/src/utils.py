@@ -1,6 +1,6 @@
 import os
 import random
-import time
+from datetime import datetime
 import json
 from collections import namedtuple
 
@@ -68,12 +68,13 @@ class Hyperparameter:
                  default_durability_increased_level=1, default_check_frequency=80, default_healing_frequency=100,
                  env_name="PongNoFrameskip-v4", exp_name="PongNoFrameskip-v4", render=False,
                  run_name="videos_proposal", output_directory_path="./Runs",
-                 hyper_dash=False, parameters_name="default"):
+                 hyper_dash=False, parameters_name="default", model_saving_frequency=50):
         # Runtime settings
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.TRANSITION = namedtuple('Transion', ('state', 'action', 'next_state', 'reward'))
         # cv2.ocl.setUseOpenCL(False)
-        time_stamp = str(int(time.time()))
+        now = datetime.now()
+        time_stamp = now.strftime('%Y%m%d%H%M%S')
         random.seed(0)
         np.random.seed(0)
         torch.manual_seed(0)
@@ -94,6 +95,7 @@ class Hyperparameter:
         self.DEFAULT_DURABILITY_INCREASED_LEVEL = default_durability_increased_level
         self.DURABILITY_CHECK_FREQUENCY = default_check_frequency
         self.DURABILITY_HEALING_FREQUENCY = default_healing_frequency
+        self.MODEL_SAVING_FREQUENCY = model_saving_frequency
 
         # Some settings
         self.ENV_NAME = env_name
@@ -129,7 +131,8 @@ class Hyperparameter:
                              "TEST_LOG_FILE_PATH": self.TEST_LOG_FILE_PATH,
                              "PARAMETER_LOG_FILE_PATH": self.PARAMETER_LOG_FILE_PATH,
                              "RENDER": str(self.RENDER),
-                             "PARAMETERS_NAME": self.PARAMETERS_NAME}
+                             "PARAMETERS_NAME": self.PARAMETERS_NAME,
+                             "MODEL_SAVING_FREQUENCY": self.MODEL_SAVING_FREQUENCY}
 
         json_params = json.dumps(self.HYPER_PARAMS)
         with open(self.PARAMETER_LOG_FILE_PATH, 'wt') as f:

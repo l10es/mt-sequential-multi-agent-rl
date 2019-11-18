@@ -1,3 +1,4 @@
+import argparse
 import csv
 import sys
 
@@ -52,7 +53,8 @@ def _load_params(file_path):
                                "render": bool(agent_config[18]),
                                "run_name": agent_config[19],
                                "output_directory_path": agent_config[20],
-                               "hyper_dash": bool(agent_config[21])}
+                               "hyper_dash": bool(agent_config[21]),
+                               "model_saving_frequency": int(agent_config[22])}
                 config_list.append(params_dict)
             except ValueError:
                 pass
@@ -93,6 +95,7 @@ def _create_agents(config_list):
                                                     run_name=config["run_name"],
                                                     output_directory_path=config["output_directory_path"],
                                                     hyper_dash=config["hyper_dash"],
+                                                    model_saving_frequency=["default_model_saving_frequency"],
                                                     parameters_name=config["name"])
             if config["name"] != "core":
                 if config["model"] == "DQN":
@@ -196,10 +199,10 @@ def hyper_dash_settings(exp_name):
     return exp
 
 
-def main():
+def main(file_path):
     # Main function flow
     # 0. Load experiment conditions
-    config_list, exp_name = _load_params("./configs/exp-dummy.csv")
+    config_list, exp_name = _load_params(file_path)
     exp = hyper_dash_settings(exp_name)
 
     # 1. Create Agents
@@ -213,17 +216,27 @@ def main():
     models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
     exp.end()
     # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
-    torch.save(core_agent.policy_net, core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
+    for agent in agents:
+        torch.save(agent.policy_net,
+                   agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}".format(exp_name, agent.get_name()))
+    torch.save(core_agent.policy_net,
+               core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}".format(exp_name, core_agent.get_name()))
 
     # 4. Test model
     test_env = create_test_envs(core_agent)
 
-    policy_net = torch.load(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
-    exp_test = hyper_dash_settings("DUMMY_TEST")
-    models.test(test_env, 1, policy_net, exp_test, render=False, agent=core_agent)
+    policy_net = torch.load(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}".format(exp_name, core_agent.get_name()))
+    exp_test = hyper_dash_settings(exp_name + "_test")
+    models.test(test_env, 1, policy_net, exp_test, exp_name, render=False, agent=core_agent)
     exp_test.end()
     # pass
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser("This program using for \"Multi-agent reinforcement learning with different parameter configurations using agent durability\"")
+    parser.add_argument("-fp", "--file_path", type=str,
+                        default="./configs/exp-dummy.csv",
+                        help="File path of agents config for experiment")
+    args = parser.parse_args()
+
+    main(args.file_path)
