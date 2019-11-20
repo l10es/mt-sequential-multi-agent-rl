@@ -1,6 +1,8 @@
 import argparse
 import csv
 import sys
+import os
+import json
 
 import torch
 from hyperdash import Experiment
@@ -44,17 +46,18 @@ def _load_params(file_path):
                                "learning_rate": float(agent_config[9]),
                                "initial_memory": int(agent_config[10]),
                                "n_episode": int(agent_config[11]),
-                               "default_durability_decreased_level": int(agent_config[12]),
-                               "default_durability_increased_level": int(agent_config[13]),
-                               "default_check_frequency": int(agent_config[14]),
-                               "default_healing_frequency": int(agent_config[15]),
-                               "env_name": agent_config[16],
-                               "exp_name": agent_config[17],
-                               "render": bool(agent_config[18]),
-                               "run_name": agent_config[19],
-                               "output_directory_path": agent_config[20],
-                               "hyper_dash": bool(agent_config[21]),
-                               "model_saving_frequency": int(agent_config[22])}
+                               "n_action": int(agent_config[12]),
+                               "default_durability_decreased_level": int(agent_config[13]),
+                               "default_durability_increased_level": int(agent_config[14]),
+                               "default_check_frequency": int(agent_config[15]),
+                               "default_healing_frequency": int(agent_config[16]),
+                               "env_name": agent_config[17],
+                               "exp_name": agent_config[18],
+                               "render": bool(agent_config[19]),
+                               "run_name": agent_config[20],
+                               "output_directory_path": agent_config[21],
+                               "hyper_dash": bool(agent_config[22]),
+                               "model_saving_frequency": int(agent_config[23])}
                 config_list.append(params_dict)
             except ValueError:
                 pass
@@ -86,6 +89,7 @@ def _create_agents(config_list):
                                                     learning_rate=config["learning_rate"],
                                                     initial_memory=config["initial_memory"],
                                                     n_episode=config["n_episode"],
+                                                    n_actions=config["n_action"],
                                                     default_durability_decreased_level=config["default_durability_decreased_level"],
                                                     default_durability_increased_level=config["default_durability_increased_level"],
                                                     default_check_frequency=config["default_check_frequency"],
@@ -95,7 +99,7 @@ def _create_agents(config_list):
                                                     run_name=config["run_name"],
                                                     output_directory_path=config["output_directory_path"],
                                                     hyper_dash=config["hyper_dash"],
-                                                    model_saving_frequency=["default_model_saving_frequency"],
+                                                    model_saving_frequency=config["model_saving_frequency"],
                                                     parameters_name=config["name"])
             if config["name"] != "core":
                 if config["model"] == "DQN":
@@ -143,32 +147,7 @@ def _create_agents(config_list):
 
 
 def create_agents(config_list):
-    # agents = []
-    # # TODO: Change to "Read from file" logic about CONSTANTS value.
     agents, core_agent = _create_agents(config_list)
-    # CONSTANTS0 = utils.Hyperparameter()
-    # print(CONSTANTS0.DEVICE)
-    #
-    # # TODO: Change code to call _create_agents function
-    # policy_net_0 = models.NonBatchNormalizedDQN(n_actions=4).to(CONSTANTS0.DEVICE)
-    # target_net_0 = models.NonBatchNormalizedDQN(n_actions=4).to(CONSTANTS0.DEVICE)
-    # optimizer_0 = optim.Adam(policy_net_0.parameters(), lr=CONSTANTS0.LEARNING_RATE)
-    # agents.append(Agent(policy_net_0, target_net_0, CONSTANTS0.DEFAULT_DURABILITY,
-    #                     optimizer_0, "cnn-dqn0", CONSTANTS0))
-    # agents.append(Agent(policy_net_0, target_net_0, CONSTANTS0.DEFAULT_DURABILITY,
-    #                     optimizer_0, "cnn-dqn1", CONSTANTS0))
-    # policy_net_1 = models.DDQN(n_actions=4).to(CONSTANTS0.DEVICE)
-    # target_net_1 = models.DDQN(n_actions=4).to(CONSTANTS0.DEVICE)
-    # optimizer_1 = optim.Adam(policy_net_1.parameters(), lr=CONSTANTS0.LEARNING_RATE)
-    # agents.append(Agent(policy_net_1, target_net_1, CONSTANTS0.DEFAULT_DURABILITY,
-    #                     optimizer_1, "cnn-ddqn0", CONSTANTS0))
-    # agents.append(Agent(policy_net_1, target_net_1, CONSTANTS0.DEFAULT_DURABILITY,
-    #                     optimizer_1, "cnn-ddqn1", CONSTANTS0))
-    #
-    # core_policy_net = models.NonBatchNormalizedDQN(n_actions=4).to()
-    # core_target_net = models.NonBatchNormalizedDQN(n_actions=4).to(CONSTANTS0.DEVICE)
-    # core_agent = Agent(core_policy_net, core_target_net, CONSTANTS0.DEFAULT_DURABILITY,
-    #                    optimizer_0, "core", CONSTANTS0)
     return agents, core_agent
 
 
@@ -199,6 +178,20 @@ def hyper_dash_settings(exp_name):
     return exp
 
 
+def create_directory(core_agent, exp_name):
+    if not os.path.exists(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH):
+        os.makedirs(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH)
+    if not os.path.exists(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/"):
+        os.makedirs(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/")
+    if not os.path.exists(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/".format(exp_name)):
+        os.makedirs(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/".format(exp_name))
+    if not os.path.exists(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/".format(exp_name)):
+        os.makedirs(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/".format(exp_name))
+    json_params = json.dumps(core_agent.CONSTANTS.HYPER_PARAMS)
+    with open(core_agent.CONSTANTS.PARAMETER_LOG_FILE_PATH, 'wt') as f:
+        f.write(json_params)
+
+
 def main(file_path):
     # Main function flow
     # 0. Load experiment conditions
@@ -211,21 +204,27 @@ def main(file_path):
     # 2. Create Environments
     envs, core_env = create_envs(agents, core_agent)
 
+    # 2.5 Create directory for save temporally
+    create_directory(core_agent, exp_name)
+
     # 3. Train model
     # best_agent = models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
     models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp, exp_name)
     exp.end()
     # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
     for agent in agents:
-        torch.save(agent.policy_net,
-                   agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}".format(exp_name, agent.get_name()))
-    torch.save(core_agent.policy_net,
+        torch.save(agent.policy_net.state_dict(),
+                   core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}".format(exp_name, agent.get_name()))
+    torch.save(core_agent.policy_net.state_dict(),
                core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}".format(exp_name, core_agent.get_name()))
 
     # 4. Test model
     test_env = create_test_envs(core_agent)
 
-    policy_net = torch.load(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}".format(exp_name, core_agent.get_name()))
+    test_model = models.NonBatchNormalizedDQN()
+    policy_net = test_model.load_state_dict(
+        torch.load(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}".format(exp_name, core_agent.get_name()))
+    )
     exp_test = hyper_dash_settings(exp_name + "_test")
     models.test(test_env, 1, policy_net, exp_test, exp_name, render=False, agent=core_agent)
     exp_test.end()

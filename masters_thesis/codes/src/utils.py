@@ -68,7 +68,7 @@ class Hyperparameter:
                  default_durability_increased_level=1, default_check_frequency=80, default_healing_frequency=100,
                  env_name="PongNoFrameskip-v4", exp_name="PongNoFrameskip-v4", render=False,
                  run_name="videos_proposal", output_directory_path="./Runs",
-                 hyper_dash=False, parameters_name="default", model_saving_frequency=50):
+                 hyper_dash=False, parameters_name="default", model_saving_frequency=50, n_actions=4):
         # Runtime settings
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.TRANSITION = namedtuple('Transion', ('state', 'action', 'next_state', 'reward'))
@@ -96,6 +96,7 @@ class Hyperparameter:
         self.DURABILITY_CHECK_FREQUENCY = default_check_frequency
         self.DURABILITY_HEALING_FREQUENCY = default_healing_frequency
         self.MODEL_SAVING_FREQUENCY = model_saving_frequency
+        self.N_ACTIONS = n_actions
 
         # Some settings
         self.ENV_NAME = env_name
@@ -103,17 +104,13 @@ class Hyperparameter:
         self.RENDER = render
         self.HYPER_DASH = hyper_dash
         self.RUN_NAME = run_name
-        self.OUTPUT_DIRECTORY_PATH = os.path.abspath(os.path.join(os.path.curdir,
-                                                                  output_directory_path,
+        self.OUTPUT_DIRECTORY_PATH = os.path.abspath(os.path.join(os.path.curdir, output_directory_path,
                                                                   self.ENV_NAME + "_" + self.RUN_NAME + "_" + time_stamp))
 
         self.TRAIN_LOG_FILE_PATH = self.OUTPUT_DIRECTORY_PATH + "/" + self.ENV_NAME + "_train_" + time_stamp + ".log"
         self.TEST_LOG_FILE_PATH = self.OUTPUT_DIRECTORY_PATH + "/" + self.ENV_NAME + "_test_" + time_stamp + ".log"
         self.PARAMETER_LOG_FILE_PATH = self.OUTPUT_DIRECTORY_PATH + "/" + self.ENV_NAME + "_params_" + time_stamp + ".json"
         self.PARAMETERS_NAME = parameters_name
-
-        if not os.path.exists(self.OUTPUT_DIRECTORY_PATH):
-            os.makedirs(self.OUTPUT_DIRECTORY_PATH)
 
         self.HYPER_PARAMS = {"BATCH_SIZE": self.BATCH_SIZE, "GAMMA": self.GAMMA, "EPS_START": self.EPS_START,
                              "EPS_END": self.EPS_END, "EPS_DECAY": self.EPS_DECAY,
@@ -133,7 +130,3 @@ class Hyperparameter:
                              "RENDER": str(self.RENDER),
                              "PARAMETERS_NAME": self.PARAMETERS_NAME,
                              "MODEL_SAVING_FREQUENCY": self.MODEL_SAVING_FREQUENCY}
-
-        json_params = json.dumps(self.HYPER_PARAMS)
-        with open(self.PARAMETER_LOG_FILE_PATH, 'wt') as f:
-            f.write(json_params)

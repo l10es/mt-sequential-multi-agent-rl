@@ -245,7 +245,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
 
             # 1. Select action from environment of each agent
             for agent in agents:
-                if agent.get_state() is not None:
+                if agent.get_state() is not None and len(agents) > 1:
+                # if agent.get_state() is not None:
                     # agent.set_env(core_agent.get_env())
                     # agent.set_state(core_agent.get_state())
                     # agent.set_init_state(core_agent.get_state())
@@ -256,6 +257,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
             # 2. Proceed step of each agent
             for agent in agents:
                 if agent.get_state() is not None:
+                # if agent.get_state() is not None and len(agents) > 1:
                     obs, reward, done, info = agent.get_env().step(agent.get_action())
                     agent.set_step_retrun_value(obs, done, info)
 
@@ -289,37 +291,37 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
             # ---------------
 
             # 3. Select best agent in this step
-            best_agent = utils.select_best_agent(agents)
-            # best_agent.best_counter()
-            [agent.best_counter() for agent in agents if agent.get_name() == best_agent.get_name()]
-            # for agent in agents:
-            #     if agent.get_name() == best_agent.get_name():
-            #         agent.best_counter()
             if len(agents) > 1:
+                best_agent = utils.select_best_agent(agents)
+                # best_agent.best_counter()
+                [agent.best_counter() for agent in agents if agent.get_name() == best_agent.get_name()]
+                # for agent in agents:
+                #     if agent.get_name() == best_agent.get_name():
+                #         agent.best_counter()
                 core_agent.memory.push(best_agent.get_init_state(), best_agent.get_action().to('cpu'),
                                        best_agent.get_next_state(),
                                        torch.tensor([best_agent.get_reward()],
                                                     device=best_agent.CONSTANTS.DEVICE).to('cpu'))
-            for agent in agents:
-                internal_agent_writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
-                                                 agent.get_total_reward(), t)
-                # core_agent_action = best_agent.get_action()
-                # best_agent_state = best_agent.get_state()
-                # policy_net_flag = best_agent.get_policy_net_flag()
-                # best_agent_action = best_agent.get_action()
+                for agent in agents:
+                    internal_agent_writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
+                                                     agent.get_total_reward(), t)
+                    # core_agent_action = best_agent.get_action()
+                    # best_agent_state = best_agent.get_state()
+                    # policy_net_flag = best_agent.get_policy_net_flag()
+                    # best_agent_action = best_agent.get_action()
 
-            # 3.5 Only best_agent can heal own durability at specific iteration
-            if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0 and len(agents) > 1:
-                # best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
-                [agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
-                 for agent in agents if agent.get_name() == best_agent.get_name()]
+                # 3.5 Only best_agent can heal own durability at specific iteration
+                if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0 and len(agents) > 1:
+                    # best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                    [agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                     for agent in agents if agent.get_name() == utils.select_best_agent(agents).get_name()]
 
             # Best_agent information
             # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
             #                                                              [agent.durability() for agent in agents]))
             # print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
-            exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.get_name(),
-                                                                   best_agent.get_total_reward()))
+                exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.get_name(),
+                                                                       best_agent.get_total_reward()))
 
             # 4. Check the agent durability in specified step
             if t % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
@@ -378,10 +380,14 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
 
         if episode % core_agent.CONSTANTS.MODEL_SAVING_FREQUENCY == 0:
             for agent in agents:
-                torch.save(agent.policy_net,
-                           core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}".format(agent.get_name()))
-            torch.save(core_agent.policy_net,
-                       core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}".format(core_agent.get_name()))
+                torch.save(agent.policy_net.state_dict(),
+                           core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(agent.get_name()))
+                torch.save(agent.target_net.state_dict(),
+                           core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(agent.get_name()))
+            torch.save(core_agent.policy_net.state_dict(),
+                       core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()))
+            torch.save(core_agent.target_net.state_dict(),
+                       core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()))
 
         exp.metric("total_reward", core_agent.get_total_reward())
         exp.metric("steps", t)
@@ -394,8 +400,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
         else:
             # print(out_str)
             exp.log(out_str)
-        with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'wt') as f:
-            f.write(out_str)
+        with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'a') as f:
+            f.write(str(out_str) + "\n")
         core_agent_writer.add_scalar("core/reward/total", core_agent.get_total_reward(), episode)
     core_env.close()
     core_agent_writer.close()
@@ -412,7 +418,7 @@ def test(env, n_episodes, policy, exp, exp_name, agent, render=True):
         obs = _env.reset()
         state = utils.get_state(obs)
         total_reward = 0.0
-        for t in count():
+        for _ in count():
             action = policy(state.to('cuda')).max(1)[1].view(1, 1)
 
             if render:
