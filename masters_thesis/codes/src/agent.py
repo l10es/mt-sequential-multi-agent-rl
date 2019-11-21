@@ -39,6 +39,7 @@ class Agent:
         self.total_reward = 0.0
         self.reward = 0.0
         self.n_best = 0
+        self.policy_net_flag = False
 
     def select_action(self, state):
         sample = random.random()
@@ -47,9 +48,21 @@ class Agent:
         self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
+                self.policy_net_flag = True
                 return self.policy_net(state.to('cuda')).max(1)[1].view(1, 1)
         else:
             return torch.tensor([[random.randrange(4)]], device=self.CONSTANTS.DEVICE, dtype=torch.long)
+
+    def select_core_action(self, best_agent_state, flag, best_agent_action):
+        self.steps_done += 1
+        if flag:
+            with torch.no_grad():
+                if best_agent_state is None:
+                    return self.policy_net(self.state.to('cuda')).max(1)[1].view(1, 1)
+                else:
+                    return self.policy_net(best_agent_state.to('cuda')).max(1)[1].view(1, 1)
+        else:
+            return best_agent_action
 
     def optimize_model(self):
         if len(self.memory) < self.CONSTANTS.BATCH_SIZE:
@@ -96,8 +109,24 @@ class Agent:
     def get_state(self):
         return self.state
 
+    def get_next_state(self):
+        return self.next_state
+
+    def get_init_state(self):
+        return self.init_state
+
+    def get_name(self):
+        return self.name
+
+    def get_policy_net_flag(self):
+        return self.policy_net_flag
+
+    def set_init_state(self, state):
+        self.init_state = state
+
     def set_state(self, state):
         self.state = state
+        self.next_state = state
 
     def set_env(self, env):
         self.env = env
@@ -138,6 +167,9 @@ class Agent:
 
     def best_counter(self):
         self.n_best += 1
+
+    def get_n_best(self):
+        return self.n_best
 
     def get_total_reward(self):
         return self.total_reward
