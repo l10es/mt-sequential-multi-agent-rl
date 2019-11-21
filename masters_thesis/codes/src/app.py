@@ -5,6 +5,7 @@ import os
 import json
 
 import torch
+import cloudpickle
 from hyperdash import Experiment
 from torch import optim
 
@@ -101,6 +102,7 @@ def _create_agents(config_list):
                                                     hyper_dash=config["hyper_dash"],
                                                     model_saving_frequency=config["model_saving_frequency"],
                                                     parameters_name=config["name"])
+            print(config["name"])
             if config["name"] != "core":
                 if config["model"] == "DQN":
                     policy_net = models.DQN(n_actions=4).to(hyper_parameters.DEVICE)
@@ -213,18 +215,16 @@ def main(file_path):
     exp.end()
     # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
     for agent in agents:
-        torch.save(agent.policy_net.state_dict(),
-                   core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}".format(exp_name, agent.get_name()))
-    torch.save(core_agent.policy_net.state_dict(),
-               core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}".format(exp_name, core_agent.get_name()))
+        with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'wb') as f:
+            cloudpickle.dump(agent.policy_net, f)
+    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'wb') as f:
+        cloudpickle.dump(core_agent.policy_net, f)
 
     # 4. Test model
     test_env = create_test_envs(core_agent)
-
-    test_model = models.NonBatchNormalizedDQN()
-    policy_net = test_model.load_state_dict(
-        torch.load(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}".format(exp_name, core_agent.get_name()))
-    )
+    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'rb') as f:
+        policy_net = cloudpickle.load(f)
+    policy_net.eval()
     exp_test = hyper_dash_settings(exp_name + "_test")
     models.test(test_env, 1, policy_net, exp_test, exp_name, render=False, agent=core_agent)
     exp_test.end()

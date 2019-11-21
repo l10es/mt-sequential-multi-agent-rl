@@ -6,6 +6,7 @@ from itertools import count
 import gym
 import torch
 import torch.nn.functional as F
+import cloudpickle
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
@@ -380,16 +381,25 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
 
         if episode % core_agent.CONSTANTS.MODEL_SAVING_FREQUENCY == 0:
             for agent in agents:
-                torch.save(agent.policy_net.state_dict(),
-                           core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(agent.get_name()))
-                torch.save(agent.target_net.state_dict(),
-                           core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(agent.get_name()))
-            torch.save(core_agent.policy_net.state_dict(),
-                       core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()))
-            torch.save(core_agent.target_net.state_dict(),
-                       core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()))
+                with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(agent.get_name()), 'wb') as f:
+                    cloudpickle.dump(agent.policy_net, f)
+                with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(agent.get_name()), 'wb') as f:
+                    cloudpickle.dump(agent.target_net, f)
+                # torch.save(agent.policy_net.state_dict(),
+                #            core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(agent.get_name()))
+                # torch.save(agent.target_net.state_dict(),
+                #            core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(agent.get_name()))
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+            # torch.save(core_agent.policy_net.state_dict(),
+            #            core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()))
+            # torch.save(core_agent.target_net.state_dict(),
+            #            core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()))
 
-        exp.metric("total_reward", core_agent.get_total_reward())
+        t_reward = core_agent.get_total_reward()
+        exp.metric("total_reward", t_reward)
         exp.metric("steps", t)
         out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
             core_agent.steps_done, episode, t, core_agent.get_total_reward())
@@ -437,7 +447,7 @@ def test(env, n_episodes, policy, exp, exp_name, agent, render=True):
             state = next_state
 
             if done:
-                out_str = "Finished Episode {} with reward {}".format(episode, total_reward)
+                out_str = "Finished Episode {} (test) with reward {}".format(episode, total_reward)
                 exp.log(out_str)
                 with open(agent.CONSTANTS.TEST_LOG_FILE_PATH, 'wt') as f:
                     f.write(out_str)
