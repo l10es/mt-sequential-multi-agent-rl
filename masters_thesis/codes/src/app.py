@@ -4,7 +4,6 @@ import sys
 import os
 import json
 
-import torch
 import cloudpickle
 from hyperdash import Experiment
 from torch import optim
@@ -153,14 +152,14 @@ def create_agents(config_list):
     return agents, core_agent
 
 
-def create_envs(agents, core_agent):
+def create_envs(agents, core_agent, exp_name):
     envs = []
     for agent in agents:
-        env = Environment(agent.CONSTANTS)
+        env = Environment(agent.CONSTANTS, exp_name, agent)
         env = env.get_env()
         envs.append(env)
 
-    core_env = Environment(core_agent.CONSTANTS)
+    core_env = Environment(core_agent.CONSTANTS, exp_name, core_agent)
     core_env = core_env.get_env()
 
     for agent, env in zip(agents, envs):
@@ -169,8 +168,8 @@ def create_envs(agents, core_agent):
     return envs, core_env
 
 
-def create_test_envs(agent):
-    test_env = Environment(agent.CONSTANTS)
+def create_test_envs(agent, exp_name):
+    test_env = Environment(agent.CONSTANTS, exp_name, agent, is_test=True)
     test_env = test_env.get_env()
     return test_env
 
@@ -180,7 +179,7 @@ def hyper_dash_settings(exp_name):
     return exp
 
 
-def create_directory(core_agent, exp_name):
+def create_directory(agents, core_agent, exp_name):
     if not os.path.exists(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH):
         os.makedirs(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH)
     if not os.path.exists(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/"):
@@ -192,37 +191,41 @@ def create_directory(core_agent, exp_name):
     json_params = json.dumps(core_agent.CONSTANTS.HYPER_PARAMS)
     with open(core_agent.CONSTANTS.PARAMETER_LOG_FILE_PATH, 'wt') as f:
         f.write(json_params)
+    core_agent.set_tf_writer(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH)
+    for agent in agents:
+        agent.set_tf_writer(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH)
 
 
 def main(file_path):
     # Main function flow
     # 0. Load experiment conditions
     config_list, exp_name = _load_params(file_path)
-    exp = hyper_dash_settings(exp_name)
 
     # 1. Create Agents
     agents, core_agent = create_agents(config_list)
 
-    # 2. Create Environments
-    envs, core_env = create_envs(agents, core_agent)
+    # # 2. Create Environments
+    envs, core_env = create_envs(agents, core_agent, exp_name)
 
     # 2.5 Create directory for save temporally
-    create_directory(core_agent, exp_name)
+    create_directory(agents, core_agent, exp_name)
 
     # 3. Train model
     # best_agent = models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
+    exp = hyper_dash_settings(exp_name)
     models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp, exp_name)
     exp.end()
     # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
     for agent in agents:
         with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'wb') as f:
             cloudpickle.dump(agent.policy_net, f)
-    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'wb') as f:
+    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}.pkl".format(exp_name, core_agent.get_name()), 'wb') as f:
         cloudpickle.dump(core_agent.policy_net, f)
 
     # 4. Test model
-    test_env = create_test_envs(core_agent)
-    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'rb') as f:
+    del agents
+    test_env = create_test_envs(core_agent, exp_name)
+    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}.pkl".format(exp_name, core_agent.get_name()), 'rb') as f:
         policy_net = cloudpickle.load(f)
     policy_net.eval()
     exp_test = hyper_dash_settings(exp_name + "_test")

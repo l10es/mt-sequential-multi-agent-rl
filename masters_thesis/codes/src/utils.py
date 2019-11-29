@@ -1,7 +1,6 @@
 import os
 import random
 from datetime import datetime
-import json
 from collections import namedtuple
 
 import numpy as np
@@ -44,8 +43,8 @@ def select_best_agent(agents):
         Otherwise, function returns best_agent object selected based on roulette table.
 
     """
-    evaluate_list = np.array([agent.get_n_best() for agent in agents if agent.get_n_best() != 0])
-    agent_list = [agent for agent in agents if agent.get_n_best != 0]
+    evaluate_list = np.array([agent.get_n_best() for agent in agents if agent.get_n_best() != 0.0])
+    agent_list = [agent for agent in agents if agent.get_n_best != 0.0]
     if len(evaluate_list) == 0:
         reward_list = [agent.get_total_reward() for agent in agents]
         best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
@@ -116,6 +115,7 @@ class Hyperparameter:
                              "EPS_END": self.EPS_END, "EPS_DECAY": self.EPS_DECAY,
                              "TARGET_UPDATE": self.TARGET_UPDATE,
                              "N_EPISODE": self.N_EPISODE,
+                             "N_ACTIONS": self.N_ACTIONS,
                              "DEFAULT_DURABILITY": self.DEFAULT_DURABILITY,
                              "LEARNING_RATE": self.LEARNING_RATE,
                              "INITIAL_MEMORY": self.INITIAL_MEMORY, "MEMORY_SIZE": self.MEMORY_SIZE,
