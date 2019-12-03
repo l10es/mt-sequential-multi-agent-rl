@@ -445,3 +445,96 @@ def test(env, n_episodes, policy, exp, exp_name, agent, render=True):
                     f.write(out_str)
                 break
     env.close()
+
+
+def single_train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name, render=False,):
+    """
+    Training step for single-agent settings.
+
+    Parameters
+    ----------
+    envs: list of Environment
+        List of environment for multi-agent
+    agents: list of Agent
+        List of multi-agents to create candidates for core_agent
+    core_env: Environment
+        Main environment of this train step
+    core_agent: Agent
+        Main agent of this train step
+    n_episodes: int
+        The number of episodes
+    agent_n : int
+        The number of agent
+    exp: Experiment
+        The Experiment object used by hyperdash
+    exp_name: str
+        The name of experiment
+    render: boolean, default False
+        Flag for whether to render the environment
+    """
+    print("INFO: Single mode...")
+    for episode in range(n_episodes):
+        # 0. Initialize the environment, state and agent params
+        obs = core_env.reset()
+        core_state = utils.get_state(obs)
+        core_agent.reset_total_reward()
+        core_agent.set_state(core_state)
+
+        for t in count():
+            if episode == 0 and t == 0:
+                core_agent_action = core_agent.select_action(core_agent.get_state(), is_first=True)
+            else:
+                core_agent_action = core_agent.select_action(core_agent.get_state())
+            core_agent.set_action(core_agent_action)
+
+            core_obs, core_reward, core_done, core_info = core_agent.get_env().step(core_agent.get_action())
+            core_agent.set_step_retrun_value(core_obs, core_done, core_info)
+
+            core_agent.set_done_state(core_done)
+            core_agent.set_total_reward(core_reward)
+
+            if not core_done:
+                core_next_state = utils.get_state(core_obs)
+            else:
+                core_next_state = None
+
+            core_reward = torch.tensor([core_reward], device=core_agent.CONSTANTS.DEVICE)
+            core_agent.memory.push(core_agent.get_state(), core_agent.get_action().to('cpu'), core_next_state, core_reward.to('cpu'))
+            core_agent.set_state(core_next_state)
+
+            if core_agent.steps_done > core_agent.CONSTANTS.INITIAL_MEMORY:
+                core_agent.optimize_model()
+
+                if core_agent.steps_done % core_agent.CONSTANTS.TARGET_UPDATE == 0:
+                    core_agent.target_net.load_state_dict(core_agent.policy_net.state_dict())
+
+            if core_agent.is_done():
+                print("\n")
+                break
+
+            exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
+            core_agent.writer.add_scalar("core/reward/all_step", core_agent.get_total_reward(), core_agent.steps_done)
+            # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
+
+        if episode % core_agent.CONSTANTS.MODEL_SAVING_FREQUENCY == 0:
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+
+        t_reward = core_agent.get_total_reward()
+        exp.metric("total_reward", t_reward)
+        exp.metric("steps", t)
+        out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
+            core_agent.steps_done, episode, t, core_agent.get_total_reward())
+        if episode % 20 == 0:
+            print(out_str)
+            out_str = str("\n" + out_str + "\n")
+            exp.log(out_str)
+        else:
+            exp.log(out_str)
+        with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'a') as f:
+            f.write(str(out_str) + "\n")
+        core_agent.writer.add_scalar("core/reward/total", core_agent.get_total_reward(), episode)
+    core_env.close()
+    core_agent.writer.close()

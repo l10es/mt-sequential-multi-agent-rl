@@ -196,10 +196,10 @@ def create_directory(agents, core_agent, exp_name):
         agent.set_tf_writer(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH)
 
 
-def main(file_path):
+def main(args):
     # Main function flow
     # 0. Load experiment conditions
-    config_list, exp_name = _load_params(file_path)
+    config_list, exp_name = _load_params(args.file_path)
 
     # 1. Create Agents
     agents, core_agent = create_agents(config_list)
@@ -210,18 +210,26 @@ def main(file_path):
     # 2.5 Create directory for save temporally
     create_directory(agents, core_agent, exp_name)
 
-    # 3. Train model
-    # best_agent = models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
-    exp = hyper_dash_settings(exp_name)
-    models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp, exp_name)
-    exp.end()
-    # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
-    for agent in agents:
-        with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'wb') as f:
-            cloudpickle.dump(agent.policy_net, f)
-    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}.pkl".format(exp_name, core_agent.get_name()), 'wb') as f:
-        cloudpickle.dump(core_agent.policy_net, f)
-
+    if not args.single_mode:
+        # 3. Train model
+        # best_agent = models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp)
+        exp = hyper_dash_settings(exp_name)
+        models.train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp, exp_name)
+        exp.end()
+        # torch.save(best_agent.policy_net, best_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/dqn_pong_model")
+        for agent in agents:
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/internal-agent/{}.pkl".format(exp_name, agent.get_name()), 'wb') as f:
+                cloudpickle.dump(agent.policy_net, f)
+        with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}.pkl".format(exp_name, core_agent.get_name()), 'wb') as f:
+            cloudpickle.dump(core_agent.policy_net, f)
+    else:
+        # 3.Train model
+        exp_name = exp_name + "_single"
+        exp = hyper_dash_settings(exp_name)
+        models.single_train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp, exp_name)
+        exp.end()
+        with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/{}/core-agent/{}.pkl".format(exp_name, core_agent.get_name()), 'wb') as f:
+            cloudpickle.dump(core_agent.policy_net, f)
     # 4. Test model
     del agents
     test_env = create_test_envs(core_agent, exp_name)
@@ -231,14 +239,14 @@ def main(file_path):
     exp_test = hyper_dash_settings(exp_name + "_test")
     models.test(test_env, 1, policy_net, exp_test, exp_name, render=False, agent=core_agent)
     exp_test.end()
-    # pass
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("This program using for \"Multi-agent reinforcement learning with different parameter configurations using agent durability\"")
-    parser.add_argument("-fp", "--file_path", type=str,
-                        default="./configs/exp-dummy.csv",
+    parser.add_argument("-fp", "--file_path", type=str, default="./configs/exp-dummy.csv",
                         help="File path of agents config for experiment")
+    parser.add_argument("-sm", "--single_mode", default=False, action='store_true',
+                        help="Flag to enable single training mode")
     args = parser.parse_args()
 
-    main(args.file_path)
+    main(args)
