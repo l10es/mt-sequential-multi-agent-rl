@@ -1,0 +1,6 @@
+name,model,batch_size,gamma,eps_start,eps_end,eps_decay,target_update,default_durability,learning_rate,initial_memory,n_episode,n_action,default_durability_decreased_level,default_durability_increased_level,default_check_frequency,default_healing_frequency,env_name,exp_name,render,run_name,output_directory_path,hyper_dash,model_saving_frequency
+core,NonBatchNormalizedDQN,64,0.99,1,0.02,1000000,1000,10000,1e-4,15000,256,4,1,1,80,100,PongNoFrameskip-v4,PongNoFrameskip-v4,False,videos_proposal,./Runs,False,50
+internal-DQN01,DQN,64,0.99,1,0.02,1000000,1000,10000,1e-4,15000,1,4,1,1,80,100,PongNoFrameskip-v4,PongNoFrameskip-v4,False,videos_proposal,./Runs,False,50
+internal-DQN02,DQN,64,0.99,1,0.02,1000000,1000,10000,1e-5,15000,1,4,1,1,80,100,PongNoFrameskip-v4,PongNoFrameskip-v4,False,videos_proposal,./Runs,False,50
+internal-DQNbn01,DQNbn,64,0.99,1,0.02,1000000,1000,10000,1e-4,15000,1,4,1,1,80,100,PongNoFrameskip-v4,PongNoFrameskip-v4,False,videos_proposal,./Runs,False,50
+internal-DQNbn02,DQNbn,64,0.99,1,0.02,1000000,1000,10000,1e-5,15000,1,4,1,1,80,100,PongNoFrameskip-v4,PongNoFrameskip-v4,False,videos_proposal,./Runs,False,50
