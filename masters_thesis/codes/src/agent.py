@@ -3,6 +3,8 @@ import math
 import torch
 import torch.nn.functional as F
 from replaymemory import ReplayMemory
+from tensorboardX import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 import utils
 from utils import Constants
@@ -40,17 +42,34 @@ class Agent:
         self.total_reward = 0.0
         self.reward = 0.0
         self.n_best = 0
+        self.policy_net_flag = False
 
-    def select_action(self, state):
+    def select_action(self, state, is_first=False):
         sample = random.random()
         eps_threshold = self.CONSTANTS.EPS_END + (self.CONSTANTS.EPS_START - self.CONSTANTS.EPS_END) * \
                         math.exp(-1. * self.steps_done / self.CONSTANTS.EPS_DECAY)
         self.steps_done += 1
+        if is_first:
+            self.writer.add_graph(self.policy_net, input_to_model=state.to(self.CONSTANTS.DEVICE),
+                                  profile_with_cuda=True)
         if sample > eps_threshold:
             with torch.no_grad():
-                return self.policy_net(state.to('cuda')).max(1)[1].view(1, 1)
+                self.policy_net_flag = True
+                return self.policy_net(state.to(self.CONSTANTS.DEVICE)).max(1)[1].view(1, 1)
         else:
-            return torch.tensor([[random.randrange(4)]], device=self.CONSTANTS.DEVICE, dtype=torch.long)
+            return torch.tensor([[random.randrange(self.CONSTANTS.N_ACTIONS)]],
+                                device=self.CONSTANTS.DEVICE, dtype=torch.long)
+
+    def select_core_action(self, best_agent_state, flag, best_agent_action):
+        self.steps_done += 1
+        if flag:
+            with torch.no_grad():
+                if best_agent_state is None:
+                    return self.policy_net(self.state.to(self.CONSTANTS.DEVICE)).max(1)[1].view(1, 1)
+                else:
+                    return self.policy_net(best_agent_state.to(self.CONSTANTS.DEVICE)).max(1)[1].view(1, 1)
+        else:
+            return best_agent_action
 
     def optimize_model(self):
         if len(self.memory) < self.CONSTANTS.BATCH_SIZE:
@@ -94,11 +113,37 @@ class Agent:
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
+    def set_tf_writer(self, path):
+        self.writer = self._set_tf_writer(path)
+
+    def _set_tf_writer(self, path):
+        if self.name == "core":
+            writer = SummaryWriter(log_dir="{}/tf-board/core/".format(path))
+        else:
+            writer = SummaryWriter(log_dir="{}/tf-board/{}".format(path, self.name))
+        return writer
+
     def get_state(self):
         return self.state
 
+    def get_next_state(self):
+        return self.next_state
+
+    def get_init_state(self):
+        return self.init_state
+
+    def get_name(self):
+        return self.name
+
+    def get_policy_net_flag(self):
+        return self.policy_net_flag
+
+    def set_init_state(self, state):
+        self.init_state = state
+
     def set_state(self, state):
         self.state = state
+        self.next_state = state
 
     def set_env(self, env):
         self.env = env
@@ -139,6 +184,9 @@ class Agent:
 
     def best_counter(self):
         self.n_best += 1
+
+    def get_n_best(self):
+        return self.n_best
 
     def get_total_reward(self):
         return self.total_reward

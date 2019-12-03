@@ -1,12 +1,14 @@
 import math
-import random
 import time
 from itertools import count
 
 import gym
+from gym import wrappers
 import torch
 import torch.nn.functional as F
+import cloudpickle
 from torch import nn
+# from torch.utils.tensorboard import SummaryWriter
 
 import utils
 
@@ -182,7 +184,7 @@ class NonBatchNormalizedDQN(nn.Module):
         return self.head(x)
 
 
-def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=False):
+def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name, render=False,):
     """
     Training step.
 
@@ -208,6 +210,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
         The number of agent
     exp: Experiment
         The Experiment object used by hyperdash
+    exp_name: str
+        The name of experiment
     render: boolean, default False
         Flag for whether to render the environment
     """
@@ -229,43 +233,56 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             #     print(str(t) + " ", end='')
             # else:
             #     print("\n")
-            #     print([agent.get_durability() for agent in agents])
+            exp.log("agent_durability:{}".format([agent.get_durability() for agent in agents]))
+            for agent in agents:
+                agent.writer.add_scalar("internal/durability/{}".format(agent.get_name()), agent.get_durability(),
+                                        core_agent.steps_done)
             #     print(str(t) + " ", end='')
 
             # 1. Select action from environment of each agent
             for agent in agents:
-                agent.set_env(core_agent.get_env())
-                agent.set_state(core_agent.get_state())
-                action = agent.select_action(agent.get_state())
-                agent.set_action(action)
+                if agent.get_state() is not None and len(agents) > 1:
+                # if agent.get_state() is not None:
+                    # agent.set_env(core_agent.get_env())
+                    # agent.set_state(core_agent.get_state())
+                    # agent.set_init_state(core_agent.get_state())
+                    agent.set_init_state(agent.get_state())
+                    if episode == 0 and t == 0:
+                        action = agent.select_action(agent.get_state(), is_first=True)
+                    else:
+                        action = agent.select_action(agent.get_state())
+                    agent.set_action(action)
 
             # 2. Proceed step of each agent
             for agent in agents:
-                obs, reward, done, info = agent.get_env().step(agent.get_action())
-                agent.set_step_retrun_value(obs, done, info)
+                if agent.get_state() is not None:
+                # if agent.get_state() is not None and len(agents) > 1:
+                    obs, reward, done, info = agent.get_env().step(agent.get_action())
+                    agent.set_step_retrun_value(obs, done, info)
 
-                agent.set_total_reward(reward)
-                # Agent reward value
-                # print("Agent:{}, Reward:{}, State:{}".format(agent.name, reward, agent.get_state()))
-                # print("Agent:{}, Reward:{}".format(agent.name, reward))
+                    agent.set_total_reward(reward)
+                    # Agent reward value
+                    # print("Agent:{}, Reward:{}, State:{}".format(agent.name, reward, agent.get_state()))
+                    # print("Agent:{}, Reward:{}".format(agent.name, reward))
 
-                if not done:
-                    next_state = utils.get_state(obs)
-                else:
-                    next_state = None
+                    if not done:
+                        next_state = utils.get_state(obs)
+                    else:
+                        next_state = None
 
-                reward = torch.tensor([reward], device=agent.CONSTANTS.DEVICE)
-                agent.memory.push(agent.get_state(), agent.get_action().to('cpu'), next_state, reward.to('cpu'))
-                agent.set_state(next_state)
+                    reward = torch.tensor([reward], device=agent.CONSTANTS.DEVICE)
+                    agent.memory.push(agent.get_state(), agent.get_action().to('cpu'), next_state, reward.to('cpu'))
+                    agent.set_state(next_state)
 
-                if agent.steps_done > agent.CONSTANTS.INITIAL_MEMORY:
-                    agent.optimize_model()
+                    if agent.steps_done > agent.CONSTANTS.INITIAL_MEMORY:
+                        agent.optimize_model()
 
-                    if agent.steps_done % agent.CONSTANTS.TARGET_UPDATE == 0:
-                        agent.target_net.load_state_dict(agent.policy_net.state_dict())
+                        if agent.steps_done % agent.CONSTANTS.TARGET_UPDATE == 0:
+                            agent.target_net.load_state_dict(agent.policy_net.state_dict())
 
             # print("\n")
-            print([agent.get_total_reward() for agent in agents])
+            # print([agent.get_total_reward() for agent in agents])
+            exp.log([agent.get_total_reward() for agent in agents])
             # print(str(t) + " ", end='')
 
             # ---------------
@@ -273,30 +290,59 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
             # ---------------
 
             # 3. Select best agent in this step
-            reward_list = [agent.get_total_reward() for agent in agents]
-            best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
-            best_agent_index = random.choice(best_agents)  # TODO: CHANGE CHOICE METHOD RANDOM TO ROULETTE
-            best_agent = agents[best_agent_index]
-            best_agent.best_counter()
+            if len(agents) > 1:
+                best_agent = utils.select_best_agent(agents)
+                # best_agent.best_counter()
+                [agent.best_counter() for agent in agents if agent.get_name() == best_agent.get_name()]
+                # for agent in agents:
+                #     if agent.get_name() == best_agent.get_name():
+                #         agent.best_counter()
+                core_agent.memory.push(best_agent.get_init_state(), best_agent.get_action().to('cpu'),
+                                       best_agent.get_next_state(),
+                                       torch.tensor([best_agent.get_reward()],
+                                                    device=best_agent.CONSTANTS.DEVICE).to('cpu'))
+                for agent in agents:
+                    agent.writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
+                                            agent.get_total_reward(), core_agent.steps_done)
+                    # core_agent_action = best_agent.get_action()
+                    # best_agent_state = best_agent.get_state()
+                    # policy_net_flag = best_agent.get_policy_net_flag()
+                    # best_agent_action = best_agent.get_action()
 
-            # 3.5 Only best_agent can heal own durability at specific iteration
-            if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0:
-                best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                # 3.5 Only best_agent can heal own durability at specific iteration
+                if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0 and len(agents) > 1:
+                    # best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                    [agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
+                     for agent in agents if agent.get_name() == utils.select_best_agent(agents).get_name()]
 
             # Best_agent information
             # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
             #                                                              [agent.durability() for agent in agents]))
-            print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
+            # print("{}: Current best agent: {}, Reward:{}".format(t, best_agent.name, best_agent.get_total_reward()))
+                exp.log("{}: Current best agent: {}, Reward:{}".format(t, best_agent.get_name(),
+                                                                       best_agent.get_total_reward()))
 
             # 4. Check the agent durability in specified step
             if t % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
                 if len(agents) > 1:
-                    index = [i for i in range(len(agents)) if i not in best_agents]
+                    # index = [i for i in range(len(agents)) if i not in best_agents]
+                    index = [i for i, agent in enumerate(agents) if agent.get_name() != best_agent.get_name()]
                     for i in index:
-                        agents[i].reduce_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_DECREASED_LEVEL)
+                        if agents[i].get_state() is not None:
+                            agents[i].reduce_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_DECREASED_LEVEL)
 
-            # 5. Main step of core agent
-            core_agent_action = best_agent.get_action()
+            # 5. Kill agent
+            if len(agents) > 1:
+                for i, agent in enumerate(agents):
+                    if agent.get_durability() <= 0:
+                        del agents[i]
+
+            # 6. Main step of core agent
+            # core_agent_action = core_agent.select_core_action(best_agent_state, policy_net_flag, best_agent_action)
+            if episode == 0 and t == 0:
+                core_agent_action = core_agent.select_action(core_agent.get_state(), is_first=True)
+            else:
+                core_agent_action = core_agent.select_action(core_agent.get_state())
             core_agent.set_action(core_agent_action)
 
             core_obs, core_reward, core_done, core_info = core_agent.get_env().step(core_agent.get_action())
@@ -311,7 +357,6 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 core_next_state = None
 
             core_reward = torch.tensor([core_reward], device=core_agent.CONSTANTS.DEVICE)
-
             core_agent.memory.push(core_agent.get_state(), core_agent.get_action().to('cpu'), core_next_state,
                                    core_reward.to('cpu'))
             core_agent.set_state(core_next_state)
@@ -326,17 +371,27 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
                 print("\n")
                 break
 
-        # 6. Kill agent
-        if len(agents) > 1 and episode % core_agent.CONSTANTS.DURABILITY_CHECK_FREQUENCY == 0:
-            for agent, i in zip(agents, range(len(agents))):
-                if agent.durability <= 0:
-                    del agents[i]
+            exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
+            core_agent.writer.add_scalar("core/reward/all_step", core_agent.get_total_reward(), core_agent.steps_done)
+            # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
 
         # ----------------------
         # End of proposal method
         # ----------------------
 
-        exp.metric("total_reward", core_agent.get_total_reward())
+        if episode % core_agent.CONSTANTS.MODEL_SAVING_FREQUENCY == 0:
+            for agent in agents:
+                with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(agent.get_name()), 'wb') as f:
+                    cloudpickle.dump(agent.policy_net, f)
+                with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(agent.get_name()), 'wb') as f:
+                    cloudpickle.dump(agent.target_net, f)
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+
+        t_reward = core_agent.get_total_reward()
+        exp.metric("total_reward", t_reward)
         exp.metric("steps", t)
         out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
             core_agent.steps_done, episode, t, core_agent.get_total_reward())
@@ -347,29 +402,32 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, render=F
         else:
             # print(out_str)
             exp.log(out_str)
-        with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'wt') as f:
-            f.write(out_str)
+        with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'a') as f:
+            f.write(str(out_str) + "\n")
+        core_agent.writer.add_scalar("core/reward/total", core_agent.get_total_reward(), episode)
     core_env.close()
+    core_agent.writer.close()
+    for agent in agents:
+        agent.writer.close()
     for agent in agents:
         agent.get_env().close()
-    return best_agent
+    del best_agent
+    # return best_agent
 
 
-def test(env, n_episodes, policy, exp, agent, render=True):
-    # Save video as mp4 on specified directory
-    _env = gym.wrappers.Monitor(env, agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + '/videos/dqn_pong_video')
+def test(env, n_episodes, policy, exp, exp_name, agent, render=True):
     for episode in range(n_episodes):
-        obs = _env.reset()
+        obs = env.reset()
         state = utils.get_state(obs)
         total_reward = 0.0
-        for t in count():
-            action = policy(state.to('cuda')).max(1)[1].view(1,1)
+        for _ in count():
+            action = policy(state.to('cuda')).max(1)[1].view(1, 1)
 
             if render:
-                _env.render()
+                env.render()
                 time.sleep(0.02)
 
-            obs, reward, done, info = _env.step(action)
+            obs, reward, done, info = env.step(action)
 
             total_reward += reward
 
@@ -381,12 +439,102 @@ def test(env, n_episodes, policy, exp, agent, render=True):
             state = next_state
 
             if done:
-                out_str = "Finished Episode {} with reward {}".format(
-                    episode, total_reward)
-                print(out_str)
+                out_str = "Finished Episode {} (test) with reward {}".format(episode, total_reward)
                 exp.log(out_str)
                 with open(agent.CONSTANTS.TEST_LOG_FILE_PATH, 'wt') as f:
                     f.write(out_str)
                 break
-
     env.close()
+
+
+def single_train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name, render=False,):
+    """
+    Training step for single-agent settings.
+
+    Parameters
+    ----------
+    envs: list of Environment
+        List of environment for multi-agent
+    agents: list of Agent
+        List of multi-agents to create candidates for core_agent
+    core_env: Environment
+        Main environment of this train step
+    core_agent: Agent
+        Main agent of this train step
+    n_episodes: int
+        The number of episodes
+    agent_n : int
+        The number of agent
+    exp: Experiment
+        The Experiment object used by hyperdash
+    exp_name: str
+        The name of experiment
+    render: boolean, default False
+        Flag for whether to render the environment
+    """
+    print("INFO: Single mode...")
+    for episode in range(n_episodes):
+        # 0. Initialize the environment, state and agent params
+        obs = core_env.reset()
+        core_state = utils.get_state(obs)
+        core_agent.reset_total_reward()
+        core_agent.set_state(core_state)
+
+        for t in count():
+            if episode == 0 and t == 0:
+                core_agent_action = core_agent.select_action(core_agent.get_state(), is_first=True)
+            else:
+                core_agent_action = core_agent.select_action(core_agent.get_state())
+            core_agent.set_action(core_agent_action)
+
+            core_obs, core_reward, core_done, core_info = core_agent.get_env().step(core_agent.get_action())
+            core_agent.set_step_retrun_value(core_obs, core_done, core_info)
+
+            core_agent.set_done_state(core_done)
+            core_agent.set_total_reward(core_reward)
+
+            if not core_done:
+                core_next_state = utils.get_state(core_obs)
+            else:
+                core_next_state = None
+
+            core_reward = torch.tensor([core_reward], device=core_agent.CONSTANTS.DEVICE)
+            core_agent.memory.push(core_agent.get_state(), core_agent.get_action().to('cpu'), core_next_state, core_reward.to('cpu'))
+            core_agent.set_state(core_next_state)
+
+            if core_agent.steps_done > core_agent.CONSTANTS.INITIAL_MEMORY:
+                core_agent.optimize_model()
+
+                if core_agent.steps_done % core_agent.CONSTANTS.TARGET_UPDATE == 0:
+                    core_agent.target_net.load_state_dict(core_agent.policy_net.state_dict())
+
+            if core_agent.is_done():
+                print("\n")
+                break
+
+            exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
+            core_agent.writer.add_scalar("core/reward/all_step", core_agent.get_total_reward(), core_agent.steps_done)
+            # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
+
+        if episode % core_agent.CONSTANTS.MODEL_SAVING_FREQUENCY == 0:
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+            with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()), 'wb') as f:
+                cloudpickle.dump(core_agent.target_net, f)
+
+        t_reward = core_agent.get_total_reward()
+        exp.metric("total_reward", t_reward)
+        exp.metric("steps", t)
+        out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
+            core_agent.steps_done, episode, t, core_agent.get_total_reward())
+        if episode % 20 == 0:
+            print(out_str)
+            out_str = str("\n" + out_str + "\n")
+            exp.log(out_str)
+        else:
+            exp.log(out_str)
+        with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'a') as f:
+            f.write(str(out_str) + "\n")
+        core_agent.writer.add_scalar("core/reward/total", core_agent.get_total_reward(), episode)
+    core_env.close()
+    core_agent.writer.close()

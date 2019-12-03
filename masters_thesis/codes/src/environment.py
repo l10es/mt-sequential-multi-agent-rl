@@ -1,10 +1,9 @@
 from collections import deque
 
 import cv2
-import gym
 import numpy as np
-
-# import torch
+import gym
+from gym import wrappers
 
 
 def _make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False):
@@ -24,13 +23,20 @@ def _make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, sc
 
 
 class Environment:
-    def __init__(self, constant):
+    def __init__(self, constant, exp_name, agent, is_test=False):
         self.CONSTANT = constant
         self.env = gym.make(self.CONSTANT.ENV_NAME)
         self.env = self.make_env(self.env)
+        if is_test:
+            self.env = self.save_video_option(self.env, agent, exp_name)
 
     def get_env(self):
         return self.env
+
+    def save_video_option(self, env, agent, exp_name):
+        # Save video as mp4 on specified directory
+        return wrappers.Monitor(env, agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + '/videos/{}'.format(exp_name),
+                                video_callable=lambda episode_id: True, force=True)
 
     def make_env(self, env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False):
         if episodic_life:
