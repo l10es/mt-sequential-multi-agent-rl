@@ -303,7 +303,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                                                     device=best_agent.CONSTANTS.DEVICE).to('cpu'))
                 for agent in agents:
                     agent.writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
-                                            agent.get_total_reward(), core_agent.steps_done)
+                                            agent.get_total_reward(), t)
                     # core_agent_action = best_agent.get_action()
                     # best_agent_state = best_agent.get_state()
                     # policy_net_flag = best_agent.get_policy_net_flag()
@@ -371,8 +371,12 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                 print("\n")
                 break
 
-            exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
+            exp.log("{} steps | Current core_agent reward: {} | Episode:{}\n".format(t, core_agent.get_total_reward(),
+                                                                                     episode))
             core_agent.writer.add_scalar("core/reward/all_step", core_agent.get_total_reward(), core_agent.steps_done)
+            for agent in agents:
+                agent.writer.add_scalar("internal/reward/{}/episode".format(agent.get_name()),
+                                        agent.get_total_reward(), episode)
             # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
 
         # ----------------------
@@ -405,6 +409,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
         with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'a') as f:
             f.write(str(out_str) + "\n")
         core_agent.writer.add_scalar("core/reward/total", core_agent.get_total_reward(), episode)
+        core_agent.writer.add_scalar("core/steps/total", t, episode)
+        core_agent.writer.add_scalars("telemetry", {"steps": t,
+                                                    "reward": core_agent.get_total_reward()}, episode)
     core_env.close()
     core_agent.writer.close()
     for agent in agents:
@@ -512,7 +519,7 @@ def single_train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, e
                 print("\n")
                 break
 
-            exp.log("Current core_agent reward: {} | Episode:{}\n".format(core_agent.get_total_reward(), episode))
+            exp.log("{}: Current core_agent reward: {} | Episode:{}\n".format(t, core_agent.get_total_reward(), episode))
             core_agent.writer.add_scalar("core/reward/all_step", core_agent.get_total_reward(), core_agent.steps_done)
             # print("Current core_agent reward: {}".format(core_agent.get_total_reward()))
 
@@ -536,5 +543,8 @@ def single_train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, e
         with open(core_agent.CONSTANTS.TRAIN_LOG_FILE_PATH, 'a') as f:
             f.write(str(out_str) + "\n")
         core_agent.writer.add_scalar("core/reward/total", core_agent.get_total_reward(), episode)
+        core_agent.writer.add_scalar("core/steps/total", t, episode)
+        core_agent.writer.add_scalars("telemetry", {"steps": t,
+                                                    "reward": core_agent.get_total_reward()}, episode)
     core_env.close()
     core_agent.writer.close()

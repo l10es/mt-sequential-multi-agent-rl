@@ -200,6 +200,8 @@ def main(args):
     # Main function flow
     # 0. Load experiment conditions
     config_list, exp_name = _load_params(args.file_path)
+    if args.single_mode:
+        exp_name = exp_name + "_single"
 
     # 1. Create Agents
     agents, core_agent = create_agents(config_list)
@@ -224,7 +226,6 @@ def main(args):
             cloudpickle.dump(core_agent.policy_net, f)
     else:
         # 3.Train model
-        exp_name = exp_name + "_single"
         exp = hyper_dash_settings(exp_name)
         models.single_train(envs, agents, core_env, core_agent, core_agent.CONSTANTS.N_EPISODE, len(agents), exp, exp_name)
         exp.end()
