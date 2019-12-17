@@ -47,10 +47,10 @@ def select_best_agent(agents, max_reward, min_reward):
         Otherwise, function returns best_agent object selected based on roulette table.
 
     """
-    evaluate_list = np.array([agent.get_reward() for agent in agents])
+    evaluate_list = np.array([agent.get_total_reward() for agent in agents])
     agent_list = [agent for agent in agents if agent.get_n_best]
     if len(evaluate_list) == 0:
-        reward_list = [agent.get_reward() for agent in agents]
+        reward_list = [agent.get_total_reward() for agent in agents]
         best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
         best_agent_index = random.choice(best_agents)
         agent = agents[best_agent_index]
@@ -63,7 +63,11 @@ def select_best_agent(agents, max_reward, min_reward):
     for i, agent in enumerate(agent_list):
         if rand <= probabilities[i]:
             return agent
-
+    reward_list = [agent.get_total_reward() for agent in agents]
+    best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
+    best_agent_index = random.choice(best_agents)
+    agent = agents[best_agent_index]
+    return agent
 
 class Hyperparameter:
     def __init__(self, batch_size=32, gamma=0.99, eps_start=1, eps_end=0.02, eps_decay=1000000, target_update=1000,
