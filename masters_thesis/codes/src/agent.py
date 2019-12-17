@@ -1,11 +1,12 @@
-import random
 import math
+import random
+
 import torch
 import torch.nn.functional as F
-from replaymemory import ReplayMemory
 from tensorboardX import SummaryWriter
 
 import utils
+from replaymemory import ReplayMemory
 
 
 class Agent:
@@ -39,6 +40,7 @@ class Agent:
         self.steps_done = 0
         self.total_reward = 0.0
         self.reward = 0.0
+        self.obtained_reward = 0.0
         self.n_best = 0
         self.policy_net_flag = False
 
@@ -85,15 +87,15 @@ class Agent:
         transition = self.CONSTANTS.TRANSITION
         batch = transition(*zip(*transitions))
 
-        actions = tuple((map(lambda a: torch.tensor([[a]], device='cuda'), batch.action)))
-        rewards = tuple((map(lambda r: torch.tensor([r], device='cuda'), batch.reward)))
+        actions = tuple((map(lambda a: torch.tensor([[a]], device=self.CONSTANTS.DEVICE), batch.action)))
+        rewards = tuple((map(lambda r: torch.tensor([r], device=self.CONSTANTS.DEVICE), batch.reward)))
 
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
                                       device=utils.get_device(), dtype=torch.bool)
 
-        non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to('cuda')
+        non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to(self.CONSTANTS.DEVICE)
 
-        state_batch = torch.cat(batch.state).to('cuda')
+        state_batch = torch.cat(batch.state).to(self.CONSTANTS.DEVICE)
         action_batch = torch.cat(actions)
         reward_batch = torch.cat(rewards)
 
@@ -172,13 +174,19 @@ class Agent:
 
     def set_total_reward(self, reward):
         self.reward = reward
+        if reward > 0.0:
+            self.obtained_reward += reward
         self.total_reward += reward
 
     def reset_total_reward(self):
         self.total_reward = 0.0
+        self.obtained_reward = 0.0
 
     def get_reward(self):
         return self.reward
+
+    def get_obtained_reward(self):
+        return self.obtained_reward
 
     def best_counter(self):
         self.n_best += 1
