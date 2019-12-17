@@ -27,15 +27,19 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
-def select_best_agent(agents):
+def select_best_agent(agents, max_reward, min_reward):
     """
     Best agent selecting operation using roulette selection in Genetic algorithm (GA).
-    In this selection, we use the number of best_agent times as fitness value in GA.
+    In this selection, we use the reward at each training steps as fitness value in GA.
 
     Parameters
     ----------
     agents : List of Agent
         List of internal agent that agent.env.step () has finished.
+    max_reward : float
+        Maximum reward on target environment
+    min_reward : float
+        Minimum reward on target environment
 
     Returns
     -------
@@ -43,17 +47,18 @@ def select_best_agent(agents):
         Otherwise, function returns best_agent object selected based on roulette table.
 
     """
-    evaluate_list = np.array([agent.get_n_best() for agent in agents if agent.get_n_best() != 0.0])
-    agent_list = [agent for agent in agents if agent.get_n_best != 0.0]
+    evaluate_list = np.array([agent.get_reward() for agent in agents])
+    agent_list = [agent for agent in agents if agent.get_n_best]
     if len(evaluate_list) == 0:
-        reward_list = [agent.get_total_reward() for agent in agents]
+        reward_list = [agent.get_reward() for agent in agents]
         best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
         best_agent_index = random.choice(best_agents)
         agent = agents[best_agent_index]
         return agent
-    total = np.sum(evaluate_list)
-    r_fit = [v / total for v in evaluate_list]
-    probabilities = [np.sum(r_fit[:i+1]) for i in range(len(evaluate_list))]
+    fit_list = [(x - min_reward) / (max_reward - min_reward) for x in evaluate_list]
+    total = np.sum(fit_list)
+    r_fit = [v / total for v in fit_list]
+    probabilities = [np.sum(r_fit[:i + 1]) for i in range(len(evaluate_list))]
     rand = random.random()
     for i, agent in enumerate(agent_list):
         if rand <= probabilities[i]:
@@ -67,7 +72,8 @@ class Hyperparameter:
                  default_durability_increased_level=1, default_check_frequency=80, default_healing_frequency=100,
                  env_name="PongNoFrameskip-v4", exp_name="PongNoFrameskip-v4", render=False,
                  run_name="videos_proposal", output_directory_path="./Runs",
-                 hyper_dash=False, parameters_name="default", model_saving_frequency=50, n_actions=4):
+                 hyper_dash=False, parameters_name="default", model_saving_frequency=50, n_actions=4,
+                 max_reward=0.0, min_reward=0.0):
         # Runtime settings
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.TRANSITION = namedtuple('Transion', ('state', 'action', 'next_state', 'reward'))
@@ -96,6 +102,8 @@ class Hyperparameter:
         self.DURABILITY_HEALING_FREQUENCY = default_healing_frequency
         self.MODEL_SAVING_FREQUENCY = model_saving_frequency
         self.N_ACTIONS = n_actions
+        self.MAX_REWARD = max_reward
+        self.MIN_REWARD = min_reward
 
         # Some settings
         self.ENV_NAME = env_name

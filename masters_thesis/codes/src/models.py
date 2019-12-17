@@ -288,7 +288,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
 
             # 3. Select best agent in this step
             if len(agents) > 1:
-                best_agent = utils.select_best_agent(agents)
+                best_agent = utils.select_best_agent(agents, core_agent.CONSTANTS.MAX_REWARD, core_agent.CONSTANTS.MIN_REWARD)
                 # best_agent.best_counter()
                 [agent.best_counter() for agent in agents if agent.get_name() == best_agent.get_name()]
                 # for agent in agents:
@@ -301,6 +301,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                 for agent in agents:
                     agent.writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
                                             agent.get_total_reward(), t)
+                    agent.writer.add_scalar("internal/obtained_reward/{}".format(agent.get_name()),
+                                            agent.get_obtained_reward(), episode)
                     # core_agent_action = best_agent.get_action()
                     # best_agent_state = best_agent.get_state()
                     # policy_net_flag = best_agent.get_policy_net_flag()
@@ -310,7 +312,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                 if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0 and len(agents) > 1:
                     # best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
                     [agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
-                     for agent in agents if agent.get_name() == utils.select_best_agent(agents).get_name()]
+                     for agent in agents if agent.get_name() == utils.select_best_agent(agents,
+                                                                                        core_agent.CONSTANTS.MAX_REWARD,
+                                                                                        core_agent.CONSTANTS.MIN_REWARD).get_name()]
 
             # Best_agent information
             # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
@@ -386,16 +390,16 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                     cloudpickle.dump(agent.policy_net, f)
                 with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(agent.get_name()), 'wb') as f:
                     cloudpickle.dump(agent.target_net, f)
-                agent.writer.add_scalar("internal/obtained_reward/{}".format(agent.get_name()),
-                                        agent.get_obtained_reward(), episode)
             with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()), 'wb') as f:
                 cloudpickle.dump(core_agent.target_net, f)
             with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()), 'wb') as f:
                 cloudpickle.dump(core_agent.target_net, f)
 
         t_reward = core_agent.get_total_reward()
+        o_reward = core_agent.get_obtained_reward()
         exp.metric("total_reward", t_reward)
         exp.metric("steps", t)
+        exp.metric("obtained_reward", o_reward)
         out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
             core_agent.steps_done, episode, t, core_agent.get_total_reward())
         if episode % 20 == 0:

@@ -57,7 +57,9 @@ def _load_params(file_path):
                                "run_name": agent_config[20],
                                "output_directory_path": agent_config[21],
                                "hyper_dash": bool(agent_config[22]),
-                               "model_saving_frequency": int(agent_config[23])}
+                               "model_saving_frequency": int(agent_config[23]),
+                               "max_reward": float(agent_config[24]),
+                               "min_reward": float(agent_config[25])}
                 config_list.append(params_dict)
             except ValueError:
                 pass
@@ -100,7 +102,9 @@ def _create_agents(config_list):
                                                     output_directory_path=config["output_directory_path"],
                                                     hyper_dash=config["hyper_dash"],
                                                     model_saving_frequency=config["model_saving_frequency"],
-                                                    parameters_name=config["name"])
+                                                    parameters_name=config["name"],
+                                                    max_reward=config["max_reward"],
+                                                    min_reward=config["min_reward"])
             print(config["name"])
             if config["name"] != "core":
                 if config["model"] == "DQN":
@@ -113,7 +117,7 @@ def _create_agents(config_list):
                     policy_net = models.DQNbn(n_actions=4).to(hyper_parameters.DEVICE)
                     target_net = models.DQNbn(n_actions=4).to(hyper_parameters.DEVICE)
                 elif config["model"] == "NonBatchNormalizedDQN":
-                    policy_net = models.NonBatchNormalizedDQN(n_actions=4).to()
+                    policy_net = models.NonBatchNormalizedDQN(n_actions=4).to(hyper_parameters.DEVICE)
                     target_net = models.NonBatchNormalizedDQN(n_actions=4).to(hyper_parameters.DEVICE)
                 # elif args["model"] == "RamDQN":
                 #     policy_net = models.RamDQN(n_actions=4).to(hyper_parameters.DEVICE)
