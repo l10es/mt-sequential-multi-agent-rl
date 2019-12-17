@@ -301,6 +301,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                 for agent in agents:
                     agent.writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
                                             agent.get_total_reward(), t)
+                    agent.writer.add_scalar("internal/obtained_reward/{}".format(agent.get_name()),
+                                            agent.get_obtained_reward(), episode)
                     # core_agent_action = best_agent.get_action()
                     # best_agent_state = best_agent.get_state()
                     # policy_net_flag = best_agent.get_policy_net_flag()
@@ -394,8 +396,10 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                 cloudpickle.dump(core_agent.target_net, f)
 
         t_reward = core_agent.get_total_reward()
+        o_reward = core_agent.get_obtained_reward()
         exp.metric("total_reward", t_reward)
         exp.metric("steps", t)
+        exp.metric("obtained_reward", o_reward)
         out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
             core_agent.steps_done, episode, t, core_agent.get_total_reward())
         if episode % 20 == 0:
@@ -546,5 +550,6 @@ def single_train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, e
         core_agent.writer.add_scalar("core/steps/total", t, episode)
         core_agent.writer.add_scalars("telemetry", {"steps": t,
                                                     "reward": core_agent.get_total_reward()}, episode)
+        core_agent.writer.add_scalar("core/obtained_reward/", core_agent.get_obtained_reward(), episode)
     core_env.close()
     core_agent.writer.close()
