@@ -550,5 +550,6 @@ def single_train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, e
         core_agent.writer.add_scalar("core/steps/total", t, episode)
         core_agent.writer.add_scalars("telemetry", {"steps": t,
                                                     "reward": core_agent.get_total_reward()}, episode)
+        core_agent.writer.add_scalar("core/obtained_reward/", core_agent.get_obtained_reward(), episode)
     core_env.close()
     core_agent.writer.close()
