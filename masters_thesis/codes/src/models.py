@@ -2,13 +2,10 @@ import math
 import time
 from itertools import count
 
-import gym
-from gym import wrappers
+import cloudpickle
 import torch
 import torch.nn.functional as F
-import cloudpickle
 from torch import nn
-# from torch.utils.tensorboard import SummaryWriter
 
 import utils
 
@@ -389,6 +386,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                     cloudpickle.dump(agent.policy_net, f)
                 with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(agent.get_name()), 'wb') as f:
                     cloudpickle.dump(agent.target_net, f)
+                agent.writer.add_scalar("internal/obtained_reward/{}".format(agent.get_name()),
+                                        agent.get_obtained_reward(), episode)
             with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-policy".format(core_agent.get_name()), 'wb') as f:
                 cloudpickle.dump(core_agent.target_net, f)
             with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/model_tmp/{}-target".format(core_agent.get_name()), 'wb') as f:
@@ -412,6 +411,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
         core_agent.writer.add_scalar("core/steps/total", t, episode)
         core_agent.writer.add_scalars("telemetry", {"steps": t,
                                                     "reward": core_agent.get_total_reward()}, episode)
+        core_agent.writer.add_scalar("core/obtained_reward/", core_agent.get_obtained_reward(), episode)
     core_env.close()
     core_agent.writer.close()
     for agent in agents:
