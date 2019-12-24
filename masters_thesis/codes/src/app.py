@@ -46,18 +46,21 @@ def _load_params(file_path):
                                "learning_rate": float(agent_config[9]),
                                "initial_memory": int(agent_config[10]),
                                "n_episode": int(agent_config[11]),
-                               "n_action": int(agent_config[12]),
-                               "default_durability_decreased_level": int(agent_config[13]),
-                               "default_durability_increased_level": int(agent_config[14]),
-                               "default_check_frequency": int(agent_config[15]),
-                               "default_healing_frequency": int(agent_config[16]),
-                               "env_name": agent_config[17],
-                               "exp_name": agent_config[18],
-                               "render": bool(agent_config[19]),
-                               "run_name": agent_config[20],
-                               "output_directory_path": agent_config[21],
-                               "hyper_dash": bool(agent_config[22]),
-                               "model_saving_frequency": int(agent_config[23])}
+                               "roulette_mode": str(agent_config[12]),
+                               "n_action": int(agent_config[13]),
+                               "default_durability_decreased_level": int(agent_config[14]),
+                               "default_durability_increased_level": int(agent_config[15]),
+                               "default_check_frequency": int(agent_config[16]),
+                               "default_healing_frequency": int(agent_config[17]),
+                               "env_name": agent_config[18],
+                               "exp_name": agent_config[19],
+                               "render": bool(agent_config[20]),
+                               "run_name": agent_config[21],
+                               "output_directory_path": agent_config[22],
+                               "hyper_dash": bool(agent_config[23]),
+                               "model_saving_frequency": int(agent_config[24]),
+                               "max_reward": float(agent_config[25]),
+                               "min_reward": float(agent_config[26])}
                 config_list.append(params_dict)
             except ValueError:
                 pass
@@ -100,7 +103,11 @@ def _create_agents(config_list):
                                                     output_directory_path=config["output_directory_path"],
                                                     hyper_dash=config["hyper_dash"],
                                                     model_saving_frequency=config["model_saving_frequency"],
-                                                    parameters_name=config["name"])
+                                                    parameters_name=config["name"],
+                                                    roulette_mode=config["roulette_mode"],
+                                                    max_reward=config["max_reward"],
+                                                    min_reward=config["min_reward"]
+                                                    )
             print(config["name"])
             if config["name"] != "core":
                 if config["model"] == "DQN":
@@ -191,6 +198,10 @@ def create_directory(agents, core_agent, exp_name):
     json_params = json.dumps(core_agent.CONSTANTS.HYPER_PARAMS)
     with open(core_agent.CONSTANTS.PARAMETER_LOG_FILE_PATH, 'wt') as f:
         f.write(json_params)
+    with open(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH + "/agents_info.log", 'a') as f:
+        f.write(core_agent.get_name() + "\n")
+        for agent in agents:
+            f.write(agent.get_name() + "\n")
     core_agent.set_tf_writer(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH)
     for agent in agents:
         agent.set_tf_writer(core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH)
@@ -248,6 +259,6 @@ if __name__ == "__main__":
                         help="File path of agents config for experiment")
     parser.add_argument("-sm", "--single_mode", default=False, action='store_true',
                         help="Flag to enable single training mode")
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
-    main(args)
+    main(_args)

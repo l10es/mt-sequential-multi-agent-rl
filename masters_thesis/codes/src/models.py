@@ -288,7 +288,9 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
 
             # 3. Select best agent in this step
             if len(agents) > 1:
-                best_agent = utils.select_best_agent(agents)
+                best_agent = utils.select_best_agent(agents, core_agent.CONSTANTS.ROULETTE_MODE,
+                                                     max_reward=core_agent.CONSTANTS.MAX_REWARD,
+                                                     min_reward=core_agent.CONSTANTS.MIN_REWARD)
                 # best_agent.best_counter()
                 [agent.best_counter() for agent in agents if agent.get_name() == best_agent.get_name()]
                 # for agent in agents:
@@ -300,7 +302,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                                                     device=best_agent.CONSTANTS.DEVICE).to('cpu'))
                 for agent in agents:
                     agent.writer.add_scalar("internal/reward/{}/all_step".format(agent.get_name()),
-                                            agent.get_total_reward(), t)
+                                            agent.get_total_reward(), core_agent.steps_done)
                     agent.writer.add_scalar("internal/obtained_reward/{}".format(agent.get_name()),
                                             agent.get_obtained_reward(), episode)
                     # core_agent_action = best_agent.get_action()
@@ -312,7 +314,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
                 if t % core_agent.CONSTANTS.DURABILITY_HEALING_FREQUENCY == 0 and len(agents) > 1:
                     # best_agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
                     [agent.heal_durability(core_agent.CONSTANTS.DEFAULT_DURABILITY_INCREASED_LEVEL)
-                     for agent in agents if agent.get_name() == utils.select_best_agent(agents).get_name()]
+                     for agent in agents if agent.get_name() == best_agent.get_name()]
 
             # Best_agent information
             # exp.log("{}: Current best agent: {}, Disabilities:{}".format(t, best_agent.name,
