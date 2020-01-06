@@ -536,8 +536,10 @@ def single_train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, e
                 cloudpickle.dump(core_agent.target_net, f)
 
         t_reward = core_agent.get_total_reward()
+        o_reward = core_agent.get_obtained_reward()
         exp.metric("total_reward", t_reward)
         exp.metric("steps", t)
+        exp.metric("obtained_reward", o_reward)
         out_str = 'Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(
             core_agent.steps_done, episode, t, core_agent.get_total_reward())
         if episode % 20 == 0:
