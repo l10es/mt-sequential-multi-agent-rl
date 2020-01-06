@@ -27,7 +27,7 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
-def select_best_agent(agents):
+def select_best_agent(agents, mode, min_reward=-21, max_reward=21):
     """
     Best agent selecting operation using roulette selection in Genetic algorithm (GA).
     In this selection, we use the number of best_agent times as fitness value in GA.
@@ -37,37 +37,70 @@ def select_best_agent(agents):
     agents : List of Agent
         List of internal agent that agent.env.step () has finished.
 
+    mode : str
+        The type of roulette selection. We can use "n_best_based" and "total_reward_based".
+
+    max_reward : int
+        The maximum reward of target task.
+
+    min_reward : int
+        The minimum reward of target task.
+
     Returns
     -------
         if the number of best_agent times is 0 in all agent, function returns agent object selected by random.
         Otherwise, function returns best_agent object selected based on roulette table.
 
     """
-    evaluate_list = np.array([agent.get_n_best() for agent in agents if agent.get_n_best() != 0.0])
-    agent_list = [agent for agent in agents if agent.get_n_best != 0.0]
-    if len(evaluate_list) == 0:
+    if mode == "total_reward_based":
+        evaluate_list = np.array([agent.get_total_reward() for agent in agents])
+        agent_list = [agent for agent in agents if agent.get_n_best]
+        if len(evaluate_list) == 0:
+            reward_list = [agent.get_total_reward() for agent in agents]
+            best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
+            best_agent_index = random.choice(best_agents)
+            agent = agents[best_agent_index]
+            return agent
+        fit_list = [(x - min_reward) / (max_reward - min_reward) for x in evaluate_list]
+        total = np.sum(fit_list)
+        r_fit = [v / total for v in fit_list]
+        probabilities = [np.sum(r_fit[:i + 1]) for i in range(len(evaluate_list))]
+        rand = random.random()
+        for i, agent in enumerate(agent_list):
+            if rand <= probabilities[i]:
+                return agent
         reward_list = [agent.get_total_reward() for agent in agents]
         best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
         best_agent_index = random.choice(best_agents)
         agent = agents[best_agent_index]
         return agent
-    total = np.sum(evaluate_list)
-    r_fit = [v / total for v in evaluate_list]
-    probabilities = [np.sum(r_fit[:i+1]) for i in range(len(evaluate_list))]
-    rand = random.random()
-    for i, agent in enumerate(agent_list):
-        if rand <= probabilities[i]:
+    else:
+        evaluate_list = np.array([agent.get_n_best() for agent in agents if agent.get_n_best() != 0.0])
+        agent_list = [agent for agent in agents if agent.get_n_best != 0.0]
+        if len(evaluate_list) == 0:
+            reward_list = [agent.get_total_reward() for agent in agents]
+            best_agents = [i for i, v in enumerate(reward_list) if v == max(reward_list)]
+            best_agent_index = random.choice(best_agents)
+            agent = agents[best_agent_index]
             return agent
+        total = np.sum(evaluate_list)
+        r_fit = [v / total for v in evaluate_list]
+        probabilities = [np.sum(r_fit[:i+1]) for i in range(len(evaluate_list))]
+        rand = random.random()
+        for i, agent in enumerate(agent_list):
+            if rand <= probabilities[i]:
+                return agent
 
 
 class Hyperparameter:
     def __init__(self, batch_size=32, gamma=0.99, eps_start=1, eps_end=0.02, eps_decay=1000000, target_update=1000,
                  default_durability=1000, learning_rate=1e-4, initial_memory=10000, n_episode=400,
-                 default_durability_decreased_level=1,
+                 default_durability_decreased_level=1, roulette_mode="n_best_based",
                  default_durability_increased_level=1, default_check_frequency=80, default_healing_frequency=100,
                  env_name="PongNoFrameskip-v4", exp_name="PongNoFrameskip-v4", render=False,
                  run_name="videos_proposal", output_directory_path="./Runs",
-                 hyper_dash=False, parameters_name="default", model_saving_frequency=50, n_actions=4):
+                 hyper_dash=False, parameters_name="default", model_saving_frequency=50, n_actions=4,
+                 max_reward=0.0, min_reward=0.0):
         # Runtime settings
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.TRANSITION = namedtuple('Transion', ('state', 'action', 'next_state', 'reward'))
@@ -96,6 +129,9 @@ class Hyperparameter:
         self.DURABILITY_HEALING_FREQUENCY = default_healing_frequency
         self.MODEL_SAVING_FREQUENCY = model_saving_frequency
         self.N_ACTIONS = n_actions
+        self.MAX_REWARD = max_reward
+        self.MIN_REWARD = min_reward
+        self.ROULETTE_MODE = roulette_mode
 
         # Some settings
         self.ENV_NAME = env_name
@@ -114,7 +150,7 @@ class Hyperparameter:
         self.HYPER_PARAMS = {"BATCH_SIZE": self.BATCH_SIZE, "GAMMA": self.GAMMA, "EPS_START": self.EPS_START,
                              "EPS_END": self.EPS_END, "EPS_DECAY": self.EPS_DECAY,
                              "TARGET_UPDATE": self.TARGET_UPDATE,
-                             "N_EPISODE": self.N_EPISODE,
+                             "N_EPISODE": self.N_EPISODE, "ROULETTE_MODE": self.ROULETTE_MODE,
                              "N_ACTIONS": self.N_ACTIONS,
                              "DEFAULT_DURABILITY": self.DEFAULT_DURABILITY,
                              "LEARNING_RATE": self.LEARNING_RATE,
