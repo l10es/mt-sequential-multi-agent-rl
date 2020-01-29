@@ -212,6 +212,7 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
     render: boolean, default False
         Flag for whether to render the environment
     """
+    _count = 0
     for episode in range(n_episodes):
         # 0. Initialize the environment, state and agent params
         obs = core_env.reset()
@@ -233,7 +234,8 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
             exp.log("agent_durability:{}".format([agent.get_durability() for agent in agents]))
             for agent in agents:
                 agent.writer.add_scalar("internal/durability/{}".format(agent.get_name()), agent.get_durability(),
-                                        core_agent.steps_done)
+                                        _count)
+            _count += 1
             #     print(str(t) + " ", end='')
 
             # 1. Select action from environment of each agent
