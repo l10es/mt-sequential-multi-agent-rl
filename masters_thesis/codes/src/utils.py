@@ -1,11 +1,18 @@
 import os
 import random
+import csv
 from datetime import datetime
 from collections import namedtuple
 
 import numpy as np
 import torch
 from PIL import Image
+
+
+def write_csv(data, path):
+    with open(path, 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(data)
 
 
 def get_device():
