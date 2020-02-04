@@ -233,8 +233,14 @@ def train(envs, agents, core_env, core_agent, n_episodes, agent_n, exp, exp_name
             #     print("\n")
             exp.log("agent_durability:{}".format([agent.get_durability() for agent in agents]))
             for agent in agents:
-                agent.writer.add_scalar("internal/durability/{}".format(agent.get_name()), agent.get_durability(),
-                                        _count)
+                if agent.get_state() is not None and len(agents) > 1:
+                    agent.writer.add_scalar("internal/durability/{}".format(agent.get_name()), agent.get_durability(),
+                                            _count)
+                    utils.write_csv([_count, agent.get_durability()], core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH +
+                                    "/{}-durability.csv".format(agent.get_name()))
+                else:
+                    utils.write_csv([_count, 0], core_agent.CONSTANTS.OUTPUT_DIRECTORY_PATH +
+                                    "/{}-durability.csv".format(agent.get_name()))
             _count += 1
             #     print(str(t) + " ", end='')
 
