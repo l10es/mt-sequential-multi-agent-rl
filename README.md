@@ -19,8 +19,8 @@ And also this project require GPU environment.
 ## Benchmark game
 
 This project use following Benchmark game.  
-* Open AI Gym - Atari Pong **NoFrameSkip-v4**
-  [Open AI Gym - Pong-v0](https://gym.openai.com/envs/Pong-v0/)
+* Open AI Gym - Atari Pong **NoFrameSkip-v4**  
+  [Rf) Open AI Gym - Pong-v0](https://gym.openai.com/envs/Pong-v0/)
 
 ## Usage
 
